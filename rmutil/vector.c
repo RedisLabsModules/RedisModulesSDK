@@ -55,11 +55,11 @@ int Vector_Resize(Vector *v, size_t newcap) {
     return v->cap;
 }
 
-int Vector_Size(Vector *v) {
+inline int Vector_Size(Vector *v) {
     return v->top;
 }
 
-int Vector_Cap(Vector *v) {
+inline int Vector_Cap(Vector *v) {
     return v->cap;
 }
 
