@@ -55,6 +55,13 @@ int Vector_Resize(Vector *v, size_t newcap) {
     return v->cap;
 }
 
+inline int Vector_Size(Vector *v) {
+    return v->top;
+}
+
+inline int Vector_Cap(Vector *v) {
+    return v->cap;
+}
 
 Vector *__newVectorSize(size_t elemSize, size_t cap) {
     
