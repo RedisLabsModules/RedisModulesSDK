@@ -19,6 +19,20 @@ RedisModuleString *RMUtil_CreateFormattedString(RedisModuleCtx *ctx, const char 
     return ret;
 }
 
+void RMUtil_PrintRedisStr(RedisModuleString *str, const char* name) {
+    const char *c;
+    if (str == NULL)
+    {
+        c = NULL;
+    }
+    else
+    {
+        size_t len;
+        c = RedisModule_StringPtrLen(str, &len);
+    }
+    printf("%s = %s\n", name, c);
+}
+
 int RMUtil_StringEquals(RedisModuleString *s1, RedisModuleString *s2) {
     
     
