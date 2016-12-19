@@ -535,7 +535,7 @@ both modes. Currently a key opened for writing can also be accessed for reading
 but this is to be considered an implementation detail. The right mode should
 be used in sane modules.
 
-You can open non exisitng keys for writing, since the keys will be created
+You can open non existing keys for writing, since the keys will be created
 when an attempt to write to the key is performed. However when opening keys
 just for reading, `RedisModule_OpenKey` will return NULL if the key does not
 exist.
