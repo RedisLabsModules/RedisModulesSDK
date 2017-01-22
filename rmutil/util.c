@@ -24,6 +24,14 @@ int RMUtil_ArgExists(const char *arg, RedisModuleString **argv, int argc, int of
     return 0;
 }
 
+RedisModuleKey *RMUtil_OpenKeyC(RedisModuleCtx *ctx, char* key_name, int mode)
+{
+    RedisModuleString * key_name_str = RedisModule_CreateStringPrintf(ctx, key_name);
+    RedisModuleKey * key = RedisModule_OpenKey(ctx, key_name_str, mode);
+    RedisModule_FreeString(ctx, key_name_str);
+    return key;
+}
+
 RMUtilInfo *RMUtil_GetRedisInfo(RedisModuleCtx *ctx) {
     
     RedisModuleCallReply *r = RedisModule_Call(ctx, "INFO", "c", "all");
@@ -63,6 +71,7 @@ RMUtilInfo *RMUtil_GetRedisInfo(RedisModuleCtx *ctx) {
     return info;
     
 }
+
 void RMUtilRedisInfo_Free(RMUtilInfo *info) {
     
     free(info->entries);
