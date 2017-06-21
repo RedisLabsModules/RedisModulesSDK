@@ -231,3 +231,18 @@ RedisModuleCallReply *RedisModule_CallReplyArrayElementByPath(RedisModuleCallRep
 
   return ele;
 }
+
+int RedisModule_TryGetValue(RedisModuleKey *key, const RedisModuleType *type, void **out) {
+  if (key == NULL) {
+    return RMUTIL_VALUE_MISSING;
+  }
+  int keytype = RedisModule_KeyType(key);
+  if (keytype == REDISMODULE_KEYTYPE_EMPTY) {
+    return RMUTIL_VALUE_EMPTY;
+  } else if (keytype == REDISMODULE_KEYTYPE_MODULE && RedisModule_ModuleTypeGetType(key) == type) {
+    *out = RedisModule_ModuleTypeGetValue(key);
+    return RMUTIL_VALUE_OK;
+  } else {
+    return RMUTIL_VALUE_MISMATCH;
+  }
+}
