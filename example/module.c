@@ -65,12 +65,12 @@ int HGetSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // get the current value of the hash element
   RedisModuleCallReply *rep =
       RedisModule_Call(ctx, "HGET", "ss", argv[1], argv[2]);
-  RMUTIL_ASSERT_NOERROR(rep);
+  RMUTIL_ASSERT_NOERROR(ctx, rep);
 
   // set the new value of the element
   RedisModuleCallReply *srep =
       RedisModule_Call(ctx, "HSET", "sss", argv[1], argv[2], argv[3]);
-  RMUTIL_ASSERT_NOERROR(srep);
+  RMUTIL_ASSERT_NOERROR(ctx, srep);
 
   // if the value was null before - we just return null
   if (RedisModule_CallReplyType(rep) == REDISMODULE_REPLY_NULL) {
@@ -137,7 +137,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx) {
   }
 
   // register example.hgetset - using the shortened utility registration macro
-  RMUtil_RegisterWriteCmd(ctx, "example.hgetset", HGetSetCommand, "fast");
+  RMUtil_RegisterWriteCmd(ctx, "example.hgetset", HGetSetCommand);
 
   // register the unit test
   RMUtil_RegisterWriteCmd(ctx, "example.test", TestModule);
