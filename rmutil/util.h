@@ -111,4 +111,23 @@ int RMUtilInfo_GetDouble(RMUtilInfo *info, const char *key, double *d);
 RedisModuleCallReply *RedisModule_CallReplyArrayElementByPath(RedisModuleCallReply *rep,
                                                               const char *path);
 
+/**
+ * Extract the module type from an opened key.
+ */
+typedef enum {
+  RMUTIL_VALUE_OK = 0,
+  RMUTIL_VALUE_MISSING,
+  RMUTIL_VALUE_EMPTY,
+  RMUTIL_VALUE_MISMATCH
+} RMUtil_TryGetValueStatus;
+
+/**
+ * Tries to extract the module-specific type from the value.
+ * @param key an opened key (may be null)
+ * @param type the pointer to the type to match to
+ * @param[out] out if the value is present, will be set to it.
+ * @return a value in the @ref RMUtil_TryGetValueStatus enum.
+ */
+int RedisModule_TryGetValue(RedisModuleKey *key, const RedisModuleType *type, void **out);
+
 #endif
