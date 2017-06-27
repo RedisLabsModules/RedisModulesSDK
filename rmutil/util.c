@@ -6,7 +6,6 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <string.h>
-#include <strings.h>
 #include <redismodule.h>
 #include "util.h"
 
@@ -41,7 +40,7 @@ int RMUtil_ArgIndex(const char *arg, RedisModuleString **argv, int argc) {
     if (l != larg) continue;
     if (carg != NULL && strncasecmp(carg, arg, larg) == 0) {
       return offset;
-    } \
+    }
   }
   return -1;
 }
@@ -244,17 +243,4 @@ int RedisModule_TryGetValue(RedisModuleKey *key, const RedisModuleType *type, vo
   } else {
     return RMUTIL_VALUE_MISMATCH;
   }
-}
-
-int RedisModule_Strncasecmp(const RedisModuleString *rs1, const char *s2, size_t n) {
-  size_t n2;
-  const char *s1 = RedisModule_StringPtrLen(rs1, &n2);
-  if (n != n2) {
-    return -1;
-  }
-  return strncasecmp(s1, s2, n);
-}
-
-int RedisModule_Strcasecmp(const RedisModuleString *s1, const char *s2) {
-  return RedisModule_Strncasecmp(s1, s2, strlen(s2));
 }
