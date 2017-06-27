@@ -71,7 +71,6 @@ RMUtilInfo *RMUtil_GetRedisInfo(RedisModuleCtx *ctx) {
     char *key = strsep(&line, ":");
     info->entries[i].key = key;
     info->entries[i].val = line;
-    //printf("Got info '%s' = '%s'\n", key, line);
     i++;
     if (i >= cap) {
       cap *= 2;
@@ -123,7 +122,6 @@ int RMUtilInfo_GetDouble(RMUtilInfo *info, const char *key, double *d) {
   }
 
   *d = strtod(p, NULL);
-  //printf("p: %s, d: %f\n", p, *d);
   if ((errno == ERANGE && (*d == HUGE_VAL || *d == -HUGE_VAL)) || (errno != 0 && *d == 0)) {
     return 0;
   }
