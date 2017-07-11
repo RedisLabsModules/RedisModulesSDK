@@ -244,3 +244,34 @@ int RedisModule_TryGetValue(RedisModuleKey *key, const RedisModuleType *type, vo
     return RMUTIL_VALUE_MISMATCH;
   }
 }
+
+RedisModuleString **RMUtil_ParseVarArgs(RedisModuleString **argv, int argc, int offset,
+                                        const char *keyword, size_t *nargs) {
+  if (offset > argc) {
+    return NULL;
+  }
+
+  argv += offset;
+  argc -= offset;
+
+  int ix = RMUtil_ArgIndex(keyword, argv, argc);
+  if (ix < 0) {
+    return NULL;
+  } else if (ix >= argc - 1) {
+    *nargs = RMUTIL_VARARGS_BADARG;
+    return argv;
+  }
+
+  argv += (ix + 1);
+  argc -= (ix + 1);
+
+  long long n = 0;
+  RMUtil_ParseArgs(argv, argc, 0, "l", &n);
+  if (n > argc - 1 || n < 0) {
+    *nargs = RMUTIL_VARARGS_BADARG;
+    return argv;
+  }
+
+  *nargs = n;
+  return argv + 1;
+}
