@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include "periodic.h"
 #include "assert.h"
-#include "test.h"
+#include "test_util.h"
 
 void timerCb(RedisModuleCtx *ctx, void *p) {
   int *x = p;

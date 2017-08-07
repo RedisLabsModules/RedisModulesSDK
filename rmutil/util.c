@@ -275,3 +275,18 @@ RedisModuleString **RMUtil_ParseVarArgs(RedisModuleString **argv, int argc, int 
   *nargs = n;
   return argv + 1;
 }
+
+void RMUtil_DefaultAofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RedisModuleCallReply *rep =
+      RedisModule_Call(RedisModule_GetContextFromIO(aof), "DUMP", "%s", key);
+  if (rep != NULL && RedisModule_CallReplyType(rep) == REDISMODULE_REPLY_STRING) {
+    size_t n;
+    const char *s = RedisModule_CallReplyStringPtr(rep, &n);
+    RedisModule_EmitAOF(aof, "RESTORE", "%sb", key, s, n);
+  } else {
+    RedisModule_Log(RedisModule_GetContextFromIO(aof), "warning", "Failed to emit AOF");
+  }
+  if (rep != NULL) {
+    RedisModule_FreeCallReply(rep);
+  }
+}
