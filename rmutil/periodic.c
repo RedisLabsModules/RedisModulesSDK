@@ -1,3 +1,4 @@
+#define REDISMODULE_EXPERIMENTAL_API
 #include "periodic.h"
 #include <pthread.h>
 #include <stdlib.h>
