@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <string.h>
+#define REDISMODULE_EXPERIMENTAL_API
 #include <redismodule.h>
 #include "util.h"
 
