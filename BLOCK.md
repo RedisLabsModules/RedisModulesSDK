@@ -220,7 +220,7 @@ reply and timeout callback:
         if (RedisModule_IsBlockedReplyRequest(ctx)) {
             long *mynumber = RedisModule_GetBlockedClientPrivateData(ctx);
             return RedisModule_ReplyWithLongLong(ctx,mynumber);
-        } else if (RedisModule_IsBlockedTimeoutRequest) {
+        } else if (RedisModule_IsBlockedTimeoutRequest(ctx)) {
             return RedisModule_ReplyWithNull(ctx);
         }
 
