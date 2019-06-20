@@ -14,8 +14,8 @@ char *rmalloc_strndup(const char *s, size_t n) {
 /*
  * Re-patching RedisModule_Alloc and friends to the original malloc functions
  *
- * This function shold be called if you are working with malloc-patched code
- * ouside of redis, usually for unit tests. Call it once when entering your unit
+ * This function should be called if you are working with malloc-patched code
+ * outside of redis, usually for unit tests. Call it once when entering your unit
  * tests' main().
  *
  * Since including "alloc.h" while defining REDIS_MODULE_TARGET
