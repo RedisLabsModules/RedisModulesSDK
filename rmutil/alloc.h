@@ -43,8 +43,8 @@ char *rmalloc_strndup(const char *s, size_t n);
 #else
 
 #endif /* REDIS_MODULE_TARGET */
-/* This function shold be called if you are working with malloc-patched code
- * ouside of redis, usually for unit tests. Call it once when entering your unit
+/* This function should be called if you are working with malloc-patched code
+ * outside of redis, usually for unit tests. Call it once when entering your unit
  * tests' main() */
 void RMUTil_InitAlloc();
 
