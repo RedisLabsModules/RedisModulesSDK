@@ -316,6 +316,9 @@ RedisModuleCtx *REDISMODULE_API_FUNC(RedisModule_GetThreadSafeContext)(RedisModu
 void REDISMODULE_API_FUNC(RedisModule_FreeThreadSafeContext)(RedisModuleCtx *ctx);
 void REDISMODULE_API_FUNC(RedisModule_ThreadSafeContextLock)(RedisModuleCtx *ctx);
 void REDISMODULE_API_FUNC(RedisModule_ThreadSafeContextUnlock)(RedisModuleCtx *ctx);
+int REDISMODULE_API_FUNC(RedisModule_ExportSharedAPI)(RedisModuleCtx *ctx, const char *name, void *fn);
+void *REDISMODULE_API_FUNC(RedisModule_GetSharedAPI)(RedisModuleCtx *, const char *);
+
 int REDISMODULE_API_FUNC(RedisModule_SubscribeToKeyspaceEvents)(RedisModuleCtx *ctx, int types, RedisModuleNotificationFunc cb);
 int REDISMODULE_API_FUNC(RedisModule_BlockedClientDisconnected)(RedisModuleCtx *ctx);
 void REDISMODULE_API_FUNC(RedisModule_RegisterClusterMessageReceiver)(RedisModuleCtx *ctx, uint8_t type, RedisModuleClusterMessageReceiver callback);
@@ -333,6 +336,10 @@ void REDISMODULE_API_FUNC(RedisModule_GetRandomHexChars)(char *dst, size_t len);
 void REDISMODULE_API_FUNC(RedisModule_SetDisconnectCallback)(RedisModuleBlockedClient *bc, RedisModuleDisconnectFunc callback);
 void REDISMODULE_API_FUNC(RedisModule_SetClusterFlags)(RedisModuleCtx *ctx, uint64_t flags);
 #endif
+
+/* Enterprise Only API */
+
+int REDISMODULE_API_FUNC(RedisModule_AvoidReplicaTraffic)();
 
 /* This is included inline inside each Redis module. */
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) __attribute__((unused));
@@ -463,6 +470,7 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(DictPrev);
     REDISMODULE_GET_API(DictCompare);
     REDISMODULE_GET_API(DictCompareC);
+	REDISMODULE_GET_API(AvoidReplicaTraffic);
 
 #ifdef REDISMODULE_EXPERIMENTAL_API
     REDISMODULE_GET_API(GetThreadSafeContext);
@@ -492,6 +500,8 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(GetRandomBytes);
     REDISMODULE_GET_API(GetRandomHexChars);
     REDISMODULE_GET_API(SetClusterFlags);
+	REDISMODULE_GET_API(ExportSharedAPI);
+	REDISMODULE_GET_API(GetSharedAPI);
 #endif
 
     if (RedisModule_IsModuleNameBusy && RedisModule_IsModuleNameBusy(name)) return REDISMODULE_ERR;
