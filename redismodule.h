@@ -369,16 +369,14 @@ typedef struct RedisModuleTypeMethods {
     X(int, CommandFilterArgReplace, (RedisModuleCommandFilterCtx *fctx, int pos, RedisModuleString *arg)) \
     X(int, CommandFilterArgDelete, (RedisModuleCommandFilterCtx *fctx, int pos))
 
-#define REDISMODULE_XAPI_ENTERPRISE(X) \
-    X(int, AvoidReplicaTraffic, ()) \
-    X(int, Fork, (RedisModuleForkDoneHandler cb, void *user_data)) \
-    X(int, ExitFromChild, (int retcode)) \
-    X(int, KillForkChild, (int child_pid))
+#ifndef REDISMODULE_XAPI_EXTENSIONS
+#define REDISMODULE_XAPI_EXTENSIONS(X)
+#endif
 
 #ifdef REDISMODULE_EXPERIMENTAL_API
-#define REDISMODULE_XAPI(X) REDISMODULE_XAPI_STABLE(X) REDISMODULE_XAPI_EXPERIMENTAL(X) REDISMODULE_XAPI_ENTERPRISE(X)
+#define REDISMODULE_XAPI(X) REDISMODULE_XAPI_STABLE(X) REDISMODULE_XAPI_EXPERIMENTAL(X) REDISMODULE_XAPI_EXTENSIONS(X)
 #else
-#define REDISMODULE_XAPI(X) REDISMODULE_XAPI_STABLE(X) REDISMODULE_XAPI_ENTERPRISE(X)
+#define REDISMODULE_XAPI(X) REDISMODULE_XAPI_STABLE(X) REDISMODULE_XAPI_EXTENSIONS(X)
 #endif
 
 typedef int (*RedisModule_GetApiFunctionType)(const char *name, void *pp);
