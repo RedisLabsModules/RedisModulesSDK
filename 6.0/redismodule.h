@@ -660,7 +660,8 @@ typedef struct RedisModuleTypeMethods {
 	X(int, Fork, (RedisModuleForkDoneHandler cb, void *user_data)) \
 	X(int, ExitFromChild, (int retcode)) \
 	X(int, KillForkChild, (int child_pid)) \
-	X(float, GetUsedMemoryRatio, ())
+	X(float, GetUsedMemoryRatio, ()) \
+	X(size_t, MallocSize, (void* ptr))
 
 #ifndef REDISMODULE_XAPI_EXTENSIONS
 #define REDISMODULE_XAPI_EXTENSIONS(X)
