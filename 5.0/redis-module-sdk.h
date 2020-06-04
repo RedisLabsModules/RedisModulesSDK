@@ -9,4 +9,4 @@
 
 #define REDISMODULE_XAPI_EXTENSIONS(X) REDISMODULE_XAPI_ENTERPRISE(X)
 
-#include "RedisModuleSDK/5.0/redismodule.h"
+#include "RedisModuleSDK/5.0/redismodulex.h"
