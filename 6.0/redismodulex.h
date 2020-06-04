@@ -471,8 +471,8 @@ typedef struct RedisModuleTypeMethods {
     X(RedisModuleCallReply *, CallReplyArrayElement, (RedisModuleCallReply *reply, size_t idx)) \
     X(RedisModuleString *, CreateString, (RedisModuleCtx *ctx, const char *ptr, size_t len)) \
     X(RedisModuleString *, CreateStringFromLongLong, (RedisModuleCtx *ctx, long long ll)) \
-	X(RedisModuleString *, CreateStringFromDouble)(RedisModuleCtx *ctx, double d)) \
-	X(RedisModuleString *, CreateStringFromLongDouble, (RedisModuleCtx *ctx, long double ld, int humanfriendly)) \
+    X(RedisModuleString *, CreateStringFromDouble)(RedisModuleCtx *ctx, double d)) \
+    X(RedisModuleString *, CreateStringFromLongDouble, (RedisModuleCtx *ctx, long double ld, int humanfriendly)) \
     X(RedisModuleString *, CreateStringFromString, (RedisModuleCtx *ctx, const RedisModuleString *str)) \
     X(RedisModuleString *, CreateStringPrintf, (RedisModuleCtx *ctx, const char *fmt, ...) __GNUC_ATTR_FORMAT(2, 3)) \
     X(void, FreeString, (RedisModuleCtx *ctx, RedisModuleString *str)) \
@@ -480,21 +480,21 @@ typedef struct RedisModuleTypeMethods {
     X(int, ReplyWithError, (RedisModuleCtx *ctx, const char *err)) \
     X(int, ReplyWithSimpleString, (RedisModuleCtx *ctx, const char *msg)) \
     X(int, ReplyWithArray, (RedisModuleCtx *ctx, long len)) \
-	X(int, ReplyWithNullArray, (RedisModuleCtx *ctx)) \
-	X(int, ReplyWithEmptyArray, (RedisModuleCtx *ctx)) \
+    X(int, ReplyWithNullArray, (RedisModuleCtx *ctx)) \
+    X(int, ReplyWithEmptyArray, (RedisModuleCtx *ctx)) \
     X(void, ReplySetArrayLength, (RedisModuleCtx *ctx, long len)) \
     X(int, ReplyWithStringBuffer, (RedisModuleCtx *ctx, const char *buf, size_t len)) \
     X(int, ReplyWithCString, (RedisModuleCtx *ctx, const char *buf)) \
     X(int, ReplyWithString, (RedisModuleCtx *ctx, RedisModuleString *str)) \
-	X(int, ReplyWithEmptyString, (RedisModuleCtx *ctx)) \
-	X(int, ReplyWithVerbatimString, (RedisModuleCtx *ctx, const char *buf, size_t len)) \
+    X(int, ReplyWithEmptyString, (RedisModuleCtx *ctx)) \
+    X(int, ReplyWithVerbatimString, (RedisModuleCtx *ctx, const char *buf, size_t len)) \
     X(int, ReplyWithNull, (RedisModuleCtx *ctx)) \
     X(int, ReplyWithDouble, (RedisModuleCtx *ctx, double d)) \
-	X(int, ReplyWithLongDouble, (RedisModuleCtx *ctx, long double d)) \
+    X(int, ReplyWithLongDouble, (RedisModuleCtx *ctx, long double d)) \
     X(int, ReplyWithCallReply, (RedisModuleCtx *ctx, RedisModuleCallReply *reply)) \
     X(int, StringToLongLong, (const RedisModuleString *str, long long *ll)) \
     X(int, StringToDouble, (const RedisModuleString *str, double *d)) \
-	X(int, StringToLongDouble, (const RedisModuleString *str, long double *d)) \
+    X(int, StringToLongDouble, (const RedisModuleString *str, long double *d)) \
     X(void, AutoMemory, (RedisModuleCtx *ctx)) \
     X(int, Replicate, (RedisModuleCtx *ctx, const char *cmdname, const char *fmt, ...)) \
     X(int, ReplicateVerbatim, (RedisModuleCtx *ctx)) \
@@ -507,9 +507,9 @@ typedef struct RedisModuleTypeMethods {
     X(int, StringTruncate, (RedisModuleKey *key, size_t newlen)) \
     X(mstime_t, GetExpire, (RedisModuleKey *key)) \
     X(int, SetExpire, (RedisModuleKey *key, mstime_t expire)) \
-	X(void, ResetDataset, (int restart_aof, int async)) \
-	X(unsigned long long, DbSize, (RedisModuleCtx *ctx)) \
-	X(RedisModuleString *, RandomKey, (RedisModuleCtx *ctx)) \
+    X(void, ResetDataset, (int restart_aof, int async)) \
+    X(unsigned long long, DbSize, (RedisModuleCtx *ctx)) \
+    X(RedisModuleString *, RandomKey, (RedisModuleCtx *ctx)) \
     X(int, ZsetAdd, (RedisModuleKey *key, double score, RedisModuleString *ele, int *flagsptr)) \
     X(int, ZsetIncrby, (RedisModuleKey *key, double score, RedisModuleString *ele, int *flagsptr, double *newscore)) \
     X(int, ZsetScore, (RedisModuleKey *key, RedisModuleString *ele, double *score)) \
@@ -528,19 +528,19 @@ typedef struct RedisModuleTypeMethods {
     X(int, IsKeysPositionRequest, (RedisModuleCtx *ctx)) \
     X(void, KeyAtPos, (RedisModuleCtx *ctx, int pos)) \
     X(unsigned long long, GetClientId, (RedisModuleCtx *ctx)) \
-	X(int, GetClientInfoById, (void *ci, uint64_t id)) \
-	X(int, PublishMessage, (RedisModuleCtx *ctx, RedisModuleString *channel, RedisModuleString *message)) \
+    X(int, GetClientInfoById, (void *ci, uint64_t id)) \
+    X(int, PublishMessage, (RedisModuleCtx *ctx, RedisModuleString *channel, RedisModuleString *message)) \
     X(int, GetContextFlags, (RedisModuleCtx *ctx)) \
-	X(int, AvoidReplicaTraffic, ()) \
+    X(int, AvoidReplicaTraffic, ()) \
     X(void *, PoolAlloc, (RedisModuleCtx *ctx, size_t bytes)) \
     X(RedisModuleType *, CreateDataType, (RedisModuleCtx *ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods)) \
     X(int,ModuleTypeSetValue, (RedisModuleKey *key, RedisModuleType *mt, void *value)) \
-	X(void *, ModuleTypeReplaceValue, (RedisModuleKey *key, RedisModuleType *mt, void *new_value)) \
+    X(void *, ModuleTypeReplaceValue, (RedisModuleKey *key, RedisModuleType *mt, void *new_value)) \
     X(RedisModuleType *, ModuleTypeGetType, (RedisModuleKey *key)) \
     X(void *, ModuleTypeGetValue, (RedisModuleKey *key)) \
-	X(int, IsIOError, (RedisModuleIO *io)) \
-	X(void, SetModuleOptions, (RedisModuleCtx *ctx, int options)) \
-	X(int, SignalModifiedKey, (RedisModuleCtx *ctx, RedisModuleString *keyname)) \
+    X(int, IsIOError, (RedisModuleIO *io)) \
+    X(void, SetModuleOptions, (RedisModuleCtx *ctx, int options)) \
+    X(int, SignalModifiedKey, (RedisModuleCtx *ctx, RedisModuleString *keyname)) \
     X(void, SaveUnsigned, (RedisModuleIO *io, uint64_t value)) \
     X(uint64_t, LoadUnsigned, (RedisModuleIO *io)) \
     X(void, SaveSigned, (RedisModuleIO *io, int64_t value)) \
@@ -554,22 +554,22 @@ typedef struct RedisModuleTypeMethods {
     X(double, LoadDouble, (RedisModuleIO *io)) \
     X(void, SaveFloat, (RedisModuleIO *io, float value)) \
     X(float, LoadFloat, (RedisModuleIO *io)) \
-	X(void, SaveLongDouble, (RedisModuleIO *io, long double value)) \
-	X(long double, LoadLongDouble, (RedisModuleIO *io)) \
-	X(void *, LoadDataTypeFromString, (const RedisModuleString *str, const RedisModuleType *mt)) \
-	X(RedisModuleString *, SaveDataTypeToString, (RedisModuleCtx *ctx, void *data, const RedisModuleType *mt)) \
-	X(void, Log, (RedisModuleCtx *ctx, const char *level, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
-	X(void, LogIOError, (RedisModuleIO *io, const char *levelstr, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
+    X(void, SaveLongDouble, (RedisModuleIO *io, long double value)) \
+    X(long double, LoadLongDouble, (RedisModuleIO *io)) \
+    X(void *, LoadDataTypeFromString, (const RedisModuleString *str, const RedisModuleType *mt)) \
+    X(RedisModuleString *, SaveDataTypeToString, (RedisModuleCtx *ctx, void *data, const RedisModuleType *mt)) \
+    X(void, Log, (RedisModuleCtx *ctx, const char *level, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
+    X(void, LogIOError, (RedisModuleIO *io, const char *levelstr, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
     X(void, Log, (RedisModuleCtx *ctx, const char *level, const char *fmt, ...)) \
     X(void, LogIOError, (RedisModuleIO *io, const char *levelstr, const char *fmt, ...)) \
-	X(void, _Assert, (const char *estr, const char *file, int line)) \
-	X(void, LatencyAddSample, (const char *event, mstime_t latency)) \
+    X(void, _Assert, (const char *estr, const char *file, int line)) \
+    X(void, LatencyAddSample, (const char *event, mstime_t latency)) \
     X(int, StringAppendBuffer, (RedisModuleCtx *ctx, RedisModuleString *str, const char *buf, size_t len)) \
     X(void, RetainString, (RedisModuleCtx *ctx, RedisModuleString *str)) \
     X(int, StringCompare, (RedisModuleString *a, RedisModuleString *b)) \
     X(RedisModuleCtx *, GetContextFromIO, (RedisModuleIO *io)) \
     X(const RedisModuleString *, GetKeyNameFromIO, (RedisModuleIO *io)) \
-	X(const RedisModuleString *, GetKeyNameFromModuleKey, (RedisModuleKey *key)) \
+    X(const RedisModuleString *, GetKeyNameFromModuleKey, (RedisModuleKey *key)) \
     X(long long, Milliseconds, (void)) \
     X(void, DigestAddStringBuffer, (RedisModuleDigest *md, unsigned char *ele, size_t len)) \
     X(void, DigestAddLongLong, (RedisModuleDigest *md, long long ele)) \
@@ -643,8 +643,8 @@ typedef struct RedisModuleTypeMethods {
     X(void, ThreadSafeContextLock, (RedisModuleCtx *ctx)) \
     X(void, ThreadSafeContextUnlock, (RedisModuleCtx *ctx)) \
     X(int, SubscribeToKeyspaceEvents, (RedisModuleCtx *ctx, int types, RedisModuleNotificationFunc cb)) \
-	X(int, NotifyKeyspaceEvent, (RedisModuleCtx *ctx, int type, const char *event, RedisModuleString *key)) \
-	X(int, GetNotifyKeyspaceEvents, ()) \
+    X(int, NotifyKeyspaceEvent, (RedisModuleCtx *ctx, int type, const char *event, RedisModuleString *key)) \
+    X(int, GetNotifyKeyspaceEvents, ()) \
     X(int, BlockedClientDisconnected, (RedisModuleCtx *ctx)) \
     X(void, RegisterClusterMessageReceiver, (RedisModuleCtx *ctx, uint8_t type, RedisModuleClusterMessageReceiver callback)) \
     X(int, SendClusterMessage, (RedisModuleCtx *ctx, char *target_id, uint8_t type, unsigned char *msg, uint32_t len)) \
@@ -669,17 +669,17 @@ typedef struct RedisModuleTypeMethods {
     X(int, CommandFilterArgInsert, (RedisModuleCommandFilterCtx *fctx, int pos, RedisModuleString *arg)) \
     X(int, CommandFilterArgReplace, (RedisModuleCommandFilterCtx *fctx, int pos, RedisModuleString *arg)) \
     X(int, CommandFilterArgDelete, (RedisModuleCommandFilterCtx *fctx, int pos)) \
-	X(int, Fork, (RedisModuleForkDoneHandler cb, void *user_data)) \
-	X(int, ExitFromChild, (int retcode)) \
-	X(int, KillForkChild, (int child_pid)) \
-	X(float, GetUsedMemoryRatio, ()) \
-	X(size_t, MallocSize, (void* ptr)) \
-	X(RedisModuleUser *, CreateModuleUser, (const char *name)) \
-	X(void, FreeModuleUser, (RedisModuleUser *user)) \
-	X(int, SetModuleUserACL, (RedisModuleUser *user, const char* acl)) \
-	X(int, AuthenticateClientWithACLUser, (RedisModuleCtx *ctx, const char *name, size_t len, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
-	X(int, AuthenticateClientWithUser, (RedisModuleCtx *ctx, RedisModuleUser *user, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
-	X(void, DeauthenticateAndCloseClient, (RedisModuleCtx *ctx, uint64_t client_id)) \
+    X(int, Fork, (RedisModuleForkDoneHandler cb, void *user_data)) \
+    X(int, ExitFromChild, (int retcode)) \
+    X(int, KillForkChild, (int child_pid)) \
+    X(float, GetUsedMemoryRatio, ()) \
+    X(size_t, MallocSize, (void* ptr)) \
+    X(RedisModuleUser *, CreateModuleUser, (const char *name)) \
+    X(void, FreeModuleUser, (RedisModuleUser *user)) \
+    X(int, SetModuleUserACL, (RedisModuleUser *user, const char* acl)) \
+    X(int, AuthenticateClientWithACLUser, (RedisModuleCtx *ctx, const char *name, size_t len, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
+    X(int, AuthenticateClientWithUser, (RedisModuleCtx *ctx, RedisModuleUser *user, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
+    X(void, DeauthenticateAndCloseClient, (RedisModuleCtx *ctx, uint64_t client_id)) \
 
 #ifndef REDISMODULE_XAPI_EXTENSIONS
 #define REDISMODULE_XAPI_EXTENSIONS(X)
