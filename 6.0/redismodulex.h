@@ -115,6 +115,8 @@ extern "C" {
 #define REDISMODULE_CTX_FLAGS_REPLICA_IS_ONLINE       (1<<17)
 /* There is currently some background process active. */
 #define REDISMODULE_CTX_FLAGS_ACTIVE_CHILD            (1<<18)
+/* The next EXEC will fail due to dirty CAS (touched keys). */
+#define REDISMODULE_CTX_FLAGS_MULTI_DIRTY             (1<<19)
 
 /* Keyspace changes notification classes. Every class is associated with a
  * character for configuration purposes.
@@ -445,7 +447,7 @@ typedef struct RedisModuleTypeMethods {
 #define REDISMODULE_XAPI_STABLE(X) \
     X(void *, Alloc, (size_t bytes)) \
     X(void *, Realloc, (void *ptr, size_t bytes)) \
-    X(void,Free, (void *ptr)) \
+    X(void, Free, (void *ptr)) \
     X(void *, Calloc, (size_t nmemb, size_t size)) \
     X(char *, Strdup, (const char *str)) \
     X(int, GetApi, (const char *, void *)) \
@@ -471,7 +473,7 @@ typedef struct RedisModuleTypeMethods {
     X(RedisModuleCallReply *, CallReplyArrayElement, (RedisModuleCallReply *reply, size_t idx)) \
     X(RedisModuleString *, CreateString, (RedisModuleCtx *ctx, const char *ptr, size_t len)) \
     X(RedisModuleString *, CreateStringFromLongLong, (RedisModuleCtx *ctx, long long ll)) \
-    X(RedisModuleString *, CreateStringFromDouble)(RedisModuleCtx *ctx, double d)) \
+    X(RedisModuleString *, CreateStringFromDouble, (RedisModuleCtx *ctx, double d)) \
     X(RedisModuleString *, CreateStringFromLongDouble, (RedisModuleCtx *ctx, long double ld, int humanfriendly)) \
     X(RedisModuleString *, CreateStringFromString, (RedisModuleCtx *ctx, const RedisModuleString *str)) \
     X(RedisModuleString *, CreateStringPrintf, (RedisModuleCtx *ctx, const char *fmt, ...) __GNUC_ATTR_FORMAT(2, 3)) \
@@ -560,8 +562,6 @@ typedef struct RedisModuleTypeMethods {
     X(RedisModuleString *, SaveDataTypeToString, (RedisModuleCtx *ctx, void *data, const RedisModuleType *mt)) \
     X(void, Log, (RedisModuleCtx *ctx, const char *level, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
     X(void, LogIOError, (RedisModuleIO *io, const char *levelstr, const char *fmt, ...) __GNUC_ATTR_FORMAT(3, 4)) \
-    X(void, Log, (RedisModuleCtx *ctx, const char *level, const char *fmt, ...)) \
-    X(void, LogIOError, (RedisModuleIO *io, const char *levelstr, const char *fmt, ...)) \
     X(void, _Assert, (const char *estr, const char *file, int line)) \
     X(void, LatencyAddSample, (const char *event, mstime_t latency)) \
     X(int, StringAppendBuffer, (RedisModuleCtx *ctx, RedisModuleString *str, const char *buf, size_t len)) \
