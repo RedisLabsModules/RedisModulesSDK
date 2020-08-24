@@ -386,6 +386,37 @@ typedef struct RedisModuleLoadingProgressInfo {
 
 typedef long long mstime_t;
 
+/* Macro definitions specific to individual compilers */
+#ifndef REDISMODULE_ATTR_UNUSED
+#    ifdef __GNUC__
+#        define REDISMODULE_ATTR_UNUSED __attribute__((unused))
+#    else
+#        define REDISMODULE_ATTR_UNUSED
+#    endif
+#endif
+
+#ifndef REDISMODULE_ATTR_PRINTF
+#    ifdef __GNUC__
+#        define REDISMODULE_ATTR_PRINTF(idx,cnt) __attribute__((format(printf,idx,cnt)))
+#    else
+#        define REDISMODULE_ATTR_PRINTF(idx,cnt)
+#    endif
+#endif
+
+#ifndef REDISMODULE_ATTR_COMMON
+#    if defined(__GNUC__) && !defined(__clang__)
+#        define REDISMODULE_ATTR_COMMON __attribute__((__common__))
+#    else
+#        define REDISMODULE_ATTR_COMMON
+#    endif
+#endif
+
+#ifdef __GNUC__
+#define __GNUC_ATTR_FORMAT(x, y) __attribute__ ((format (printf, x, y)))
+#else
+#define __GNUC_ATTR_FORMAT(x, y)
+#endif
+
 /* Incomplete structures for compiler checks but opaque access. */
 typedef struct RedisModuleCtx RedisModuleCtx;
 typedef struct RedisModuleKey RedisModuleKey;
@@ -439,10 +470,17 @@ typedef struct RedisModuleTypeMethods {
     int aux_save_triggers;
 } RedisModuleTypeMethods;
 
-#ifdef __GNUC__
-#define __GNUC_ATTR_FORMAT(x, y) __attribute__ ((format (printf, x, y)))
-#else
-#define __GNUC_ATTR_FORMAT(x, y)
+#define REDISMODULE_GET_API(name) \
+    RedisModule_GetApi("RedisModule_" #name, ((void **)&RedisModule_ ## name))
+
+/* Default API declaration prefix (not 'extern' for backwards compatibility) */
+#ifndef REDISMODULE_API
+#define REDISMODULE_API
+#endif
+
+/* Default API declaration suffix (compiler attributes) */
+#ifndef REDISMODULE_ATTR
+#define REDISMODULE_ATTR REDISMODULE_ATTR_COMMON
 #endif
 
 #define REDISMODULE_XAPI_STABLE(X) \
@@ -537,8 +575,8 @@ typedef struct RedisModuleTypeMethods {
     X(int, AvoidReplicaTraffic, ()) \
     X(void *, PoolAlloc, (RedisModuleCtx *ctx, size_t bytes)) \
     X(RedisModuleType *, CreateDataType, (RedisModuleCtx *ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods)) \
-    X(int,ModuleTypeSetValue, (RedisModuleKey *key, RedisModuleType *mt, void *value)) \
-    X(void *, ModuleTypeReplaceValue, (RedisModuleKey *key, RedisModuleType *mt, void *new_value)) \
+    X(int, ModuleTypeSetValue, (RedisModuleKey *key, RedisModuleType *mt, void *value)) \
+    X(int, ModuleTypeReplaceValue, (RedisModuleKey *key, RedisModuleType *mt, void *new_value)) \
     X(RedisModuleType *, ModuleTypeGetType, (RedisModuleKey *key)) \
     X(void *, ModuleTypeGetValue, (RedisModuleKey *key)) \
     X(int, IsIOError, (RedisModuleIO *io)) \
@@ -567,6 +605,7 @@ typedef struct RedisModuleTypeMethods {
     X(void, LatencyAddSample, (const char *event, mstime_t latency)) \
     X(int, StringAppendBuffer, (RedisModuleCtx *ctx, RedisModuleString *str, const char *buf, size_t len)) \
     X(void, RetainString, (RedisModuleCtx *ctx, RedisModuleString *str)) \
+    X(RedisModuleString *, HoldString, (RedisModuleCtx *ctx, RedisModuleString *str)) \
     X(int, StringCompare, (RedisModuleString *a, RedisModuleString *b)) \
     X(RedisModuleCtx *, GetContextFromIO, (RedisModuleIO *io)) \
     X(const RedisModuleString *, GetKeyNameFromIO, (RedisModuleIO *io)) \
@@ -680,7 +719,7 @@ typedef struct RedisModuleTypeMethods {
     X(int, SetModuleUserACL, (RedisModuleUser *user, const char* acl)) \
     X(int, AuthenticateClientWithACLUser, (RedisModuleCtx *ctx, const char *name, size_t len, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
     X(int, AuthenticateClientWithUser, (RedisModuleCtx *ctx, RedisModuleUser *user, RedisModuleUserChangedFunc callback, void *privdata, uint64_t *client_id)) \
-    X(void, DeauthenticateAndCloseClient, (RedisModuleCtx *ctx, uint64_t client_id)) \
+    X(int, DeauthenticateAndCloseClient, (RedisModuleCtx *ctx, uint64_t client_id)) \
 
 #ifndef REDISMODULE_XAPI_EXTENSIONS
 #define REDISMODULE_XAPI_EXTENSIONS(X)
@@ -697,15 +736,28 @@ typedef struct RedisModuleTypeMethods {
 typedef int (*RedisModule_GetApiFunctionType)(const char *name, void *pp);
 
 #pragma push_macro("X")
+
+#ifdef REDISMODULE_MAIN
+
 #define X(TYPE, NAME, ARGS) \
-     __attribute__ ((weak)) TYPE (*RedisModule_##NAME) ARGS = NULL;
+     REDISMODULE_API TYPE (*RedisModule_##NAME) ARGS REDISMODULE_ATTR = NULL;
 REDISMODULE_XAPI(X)
 #undef X
+
+#else
+
+#define X(TYPE, NAME, ARGS) \
+     extern REDISMODULE_API ((weak)) TYPE (*RedisModule_##NAME) ARGS REDISMODULE_ATTR;
+REDISMODULE_XAPI(X)
+#undef X
+
+#endif // REDISMODULE_MAIN
+
 #pragma pop_macro("X")
 
 /* This is included inline inside each Redis module. */
 
-static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) __attribute__((unused));
+static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) REDISMODULE_ATTR_UNUSED;
 
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) {
     RedisModule_GetApiFunctionType getapifuncptr = (RedisModule_GetApiFunctionType)((void **)ctx)[0];
