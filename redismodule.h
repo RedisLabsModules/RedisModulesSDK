@@ -786,13 +786,11 @@ REDISMODULE_API int *(*RedisModule_GetCommandKeys)(RedisModuleCtx *ctx, RedisMod
 
 #define RedisModule_IsAOFClient(id) ((id) == CLIENT_ID_AOF)
 
-typedef int (*RedisModule_GetApiFunctionType)(const char *name, void *pp);
-
 /* This is included inline inside each Redis module. */
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) REDISMODULE_ATTR_UNUSED;
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) {
-    RedisModule_GetApiFunctionType getapifuncptr = (RedisModule_GetApiFunctionType) ((void**)ctx)[0];
-    RedisModule_GetApi = (RedisModule_GetApiFunctionType) (unsigned long)getapifuncptr;
+    void *getapifuncptr = ((void**)ctx)[0];
+    RedisModule_GetApi = (int (*)(const char *, void *)) (unsigned long)getapifuncptr;
     REDISMODULE_GET_API(Alloc);
     REDISMODULE_GET_API(Calloc);
     REDISMODULE_GET_API(Free);
