@@ -19,6 +19,9 @@
                 
 #define RMUtil_Assert(expr) if (!(expr)) { fprintf (stderr, "Assertion '%s' Failed\n", __STRING(expr)); return REDISMODULE_ERR; }
 
+#define RMUtil_AssertNullReply(rep) RMUtil_Assert( \
+            RedisModule_CallReplyType(rep) == REDISMODULE_REPLY_NULL || RedisModule_CreateStringFromCallReply(rep) == NULL)
+
 #define RMUtil_AssertReplyEquals(rep, cstr) RMUtil_Assert( \
             RMUtil_StringEquals(RedisModule_CreateStringFromCallReply(rep), RedisModule_CreateString(ctx, cstr, strlen(cstr))) \
             )

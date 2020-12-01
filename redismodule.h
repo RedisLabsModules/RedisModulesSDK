@@ -5,6 +5,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* ---------------- Defines common between core and modules --------------- */
 
 /* Error status return values. */
@@ -522,6 +526,10 @@ typedef struct RedisModuleTypeMethods {
     RedisModule_GetApi("RedisModule_" #name, ((void **)&RedisModule_ ## name))
 
 /* Default API declaration prefix (not 'extern' for backwards compatibility) */
+#ifndef REDISMODULE_MAIN
+#define REDISMODULE_API extern
+#endif
+
 #ifndef REDISMODULE_API
 #define REDISMODULE_API
 #endif
@@ -778,11 +786,13 @@ REDISMODULE_API int *(*RedisModule_GetCommandKeys)(RedisModuleCtx *ctx, RedisMod
 
 #define RedisModule_IsAOFClient(id) ((id) == CLIENT_ID_AOF)
 
+typedef int (*RedisModule_GetApiFunctionType)(const char *name, void *pp);
+
 /* This is included inline inside each Redis module. */
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) REDISMODULE_ATTR_UNUSED;
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) {
-    void *getapifuncptr = ((void**)ctx)[0];
-    RedisModule_GetApi = (int (*)(const char *, void *)) (unsigned long)getapifuncptr;
+    RedisModule_GetApiFunctionType getapifuncptr = (RedisModule_GetApiFunctionType) ((void**)ctx)[0];
+    RedisModule_GetApi = (RedisModule_GetApiFunctionType) (unsigned long)getapifuncptr;
     REDISMODULE_GET_API(Alloc);
     REDISMODULE_GET_API(Calloc);
     REDISMODULE_GET_API(Free);
@@ -1041,4 +1051,9 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
 #define RedisModuleString robj
 
 #endif /* REDISMODULE_CORE */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* REDISMODULE_H */
