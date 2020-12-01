@@ -23,4 +23,7 @@ clean: FORCE
 	rm -rf ./$(SRC_DIR)/*.xo ./$(SRC_DIR)/*.so ./$(SRC_DIR)/*.o
 	rm -rf ./$(RMUTIL_LIBDIR)/*.so ./$(RMUTIL_LIBDIR)/*.o ./$(RMUTIL_LIBDIR)/*.a
 
+run:
+	redis-server --loadmodule ./module.so
+
 FORCE:
