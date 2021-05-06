@@ -1,9 +1,15 @@
 #ifndef REDISMODULE_H
 #define REDISMODULE_H
 
+// clang-format off
+
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ---------------- Defines common between core and modules --------------- */
 
@@ -510,6 +516,10 @@ typedef struct RedisModuleTypeMethods {
     RedisModule_GetApi("RedisModule_" #name, ((void **)&RedisModule_ ## name))
 
 /* Default API declaration prefix (not 'extern' for backwards compatibility) */
+#ifndef REDISMODULE_MAIN
+#define REDISMODULE_API extern
+#endif
+
 #ifndef REDISMODULE_API
 #define REDISMODULE_API
 #endif
@@ -1018,13 +1028,18 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
 
 #define RedisModule_Assert(_e) ((_e)?(void)0 : (RedisModule__Assert(#_e,__FILE__,__LINE__),exit(1)))
 
+#define RMAPI_FUNC_SUPPORTED(func) (func != NULL)
+
 #else
 
 /* Things only defined for the modules core, not exported to modules
  * including this file. */
 #define RedisModuleString robj
 
-#define RMAPI_FUNC_SUPPORTED(func) (func != NULL)
-
 #endif /* REDISMODULE_CORE */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* REDISMODULE_H */
