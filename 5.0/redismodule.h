@@ -1,9 +1,15 @@
 #ifndef REDISMODULE_H
 #define REDISMODULE_H
 
+// clang-format off
+
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdio.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* ---------------- Defines common between core and modules --------------- */
 
@@ -565,4 +571,9 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
 #define RedisModuleString robj
 
 #endif /* REDISMODULE_CORE */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* REDISMOUDLE_H */
