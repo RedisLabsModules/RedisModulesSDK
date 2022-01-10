@@ -804,6 +804,16 @@ REDISMODULE_API int (*RedisModule_IsSubEventSupported)(RedisModuleEvent event, u
 REDISMODULE_API int (*RedisModule_GetServerVersion)() REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_GetTypeMethodVersion)() REDISMODULE_ATTR;
 
+// enterprise only
+REDISMODULE_API int (*RedisModule_ShardingGetKeySlot)(RedisModuleString *keyname) REDISMODULE_ATTR;
+REDISMODULE_API void (*RedisModule_ShardingGetSlotRange)(int *first_slot, int *last_slot) REDISMODULE_ATTR;
+#define REDISMODULE_NOTIFY_TRIMMED (1<<30)     /* trimmed by reshard trimming enterprise only event */
+#define REDISMODULE_EVENT_SHARDING 1000
+static const RedisModuleEvent RedisModuleEvent_Sharding = {REDISMODULE_EVENT_SHARDING, 1};
+#define REDISMODULE_SUBEVENT_SHARDING_SLOT_RANGE_CHANGED 0
+#define REDISMODULE_SUBEVENT_SHARDING_TRIMMING_STARTED 1
+#define REDISMODULE_SUBEVENT_SHARDING_TRIMMING_ENDED 2
+
 /* Experimental APIs */
 #ifdef REDISMODULE_EXPERIMENTAL_API
 #define REDISMODULE_EXPERIMENTAL_API_VERSION 3
