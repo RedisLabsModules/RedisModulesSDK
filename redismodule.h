@@ -596,6 +596,42 @@ typedef struct RedisModuleTypeMethods {
 #define REDISMODULE_ATTR REDISMODULE_ATTR_COMMON
 #endif
 
+
+/* bigredis extensions
+ * -------------------*/
+#define REDISMODULE_METADATA_NOT_ON_SWAP 0x80
+/* Notification that a key's value is added to ram (from swap or otherwise).
+ * swap_key_flags has 4 bits that the module can write / read.
+ * when swap_key_metadata is NOT_ON_SWAP, it means the key is not loaded from swap. */
+typedef void (*RedisModuleTypeKeyAddedToDbDictFunc)(RedisModuleCtx *ctx, RedisModuleString *key, void *value, int swap_key_metadata);
+/* Notification that a key's value is removed from ram (may still exist on swap).
+ * when swap_key_metadata is NOT_ON_SWAP it means the key does not exist on swap.
+ * return swap_key_metadata or NOT_ON_SWAP if key is to be deleted (and not to be written). */
+typedef int (*RedisModuleTypeRemovingKeyFromDbDictFunc)(RedisModuleCtx *ctx, RedisModuleString *key, void *value, int swap_key_metadata, int writing_to_swap);
+/* return swap_key_metadata, 0 indicates nothing to write. when out_min_expire is -1 it indicates nothing to write. */
+typedef int (*RedisModuleTypeGetKeyMetadataForRdbFunc)(RedisModuleCtx *ctx, RedisModuleString *key, void *value, long long *out_min_expire, long long *out_max_expire);
+
+#define REDISMODULE_TYPE_EXT_METHOD_VERSION 1
+typedef struct RedisModuleTypeExtMethods {
+    uint64_t version;
+    RedisModuleTypeKeyAddedToDbDictFunc key_added_to_db_dict;
+    RedisModuleTypeRemovingKeyFromDbDictFunc removing_key_from_db_dict;
+    RedisModuleTypeGetKeyMetadataForRdbFunc get_key_metadata_for_rdb;
+} RedisModuleTypeExtMethods;
+
+REDISMODULE_API int (*RedisModule_SetDataTypeExtensions)(RedisModuleCtx *ctx, RedisModuleType *mt, RedisModuleTypeExtMethods *typemethods) REDISMODULE_ATTR;
+
+typedef void (*RedisModuleSwapPrefetchCB)(RedisModuleCtx *ctx, RedisModuleString *key, void* user_data);
+
+REDISMODULE_API int (*RedisModule_SwapPrefetchKey)(RedisModuleCtx *ctx, RedisModuleString *keyname, RedisModuleSwapPrefetchCB fn, void *user_data, int flags) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_GetSwapKeyMetadata)(RedisModuleCtx *ctx, RedisModuleString *key) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_SetSwapKeyMetadata)(RedisModuleCtx *ctx, RedisModuleString *key, int module_metadata) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_IsKeyInRam)(RedisModuleCtx *ctx, RedisModuleString *key) REDISMODULE_ATTR;
+
+/* bigredis extensions end
+ * -------------------*/
+
+
 REDISMODULE_API void * (*RedisModule_Alloc)(size_t bytes) REDISMODULE_ATTR;
 REDISMODULE_API void * (*RedisModule_Realloc)(void *ptr, size_t bytes) REDISMODULE_ATTR;
 REDISMODULE_API void (*RedisModule_Free)(void *ptr) REDISMODULE_ATTR;
