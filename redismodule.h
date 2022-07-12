@@ -619,7 +619,7 @@ typedef struct RedisModuleTypeExtMethods {
     RedisModuleTypeGetKeyMetadataForRdbFunc get_key_metadata_for_rdb;
 } RedisModuleTypeExtMethods;
 
-REDISMODULE_API int (*RedisModule_SetDataTypeExtensions)(RedisModuleCtx *ctx, RedisModuleType *mt, RedisModuleTypeExtMethods *typemethods) REDISMODULE_ATTR;
+__attribute__ ((weak)) REDISMODULE_API int (*RedisModule_SetDataTypeExtensions)(RedisModuleCtx *ctx, RedisModuleType *mt, RedisModuleTypeExtMethods *typemethods) REDISMODULE_ATTR = NULL;
 
 typedef void (*RedisModuleSwapPrefetchCB)(RedisModuleCtx *ctx, RedisModuleString *key, void* user_data);
 
