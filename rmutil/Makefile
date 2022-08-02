@@ -1,11 +1,6 @@
-# set environment variable RM_INCLUDE_DIR to the location of redismodule.h
-ifndef RM_INCLUDE_DIR
-	RM_INCLUDE_DIR=../
-endif
 
-CFLAGS ?= -g -fPIC -O3 -std=gnu99 -Wall -Wno-unused-function
-CFLAGS += -I$(RM_INCLUDE_DIR)
-CC=gcc
+GCC_FLAGS ?= -g -fPIC -O3 -std=gnu99 -Wall -Wno-unused-function -I../include
+GCC=gcc
 
 OBJS=util.o strings.o sds.o vector.o alloc.o periodic.o
 
@@ -14,18 +9,22 @@ all: librmutil.a
 clean:
 	rm -rf *.o *.a
 
+%.o : %.c
+	$(GCC) -c $(GCC_FLAGS) -Wall -o $@ $^ -O0
+
 librmutil.a: $(OBJS)
 	ar rcs $@ $^
 
 test_vector: test_vector.o vector.o
-	$(CC) -Wall -o $@ $^ -lc -lpthread -O0
-	@(sh -c ./$@)
-.PHONY: test_vector
+	$(GCC) $(GCC_FLAGS) -Wall -o $@ $^ -lc -lpthread -O0
+	./$@
 
 test_periodic: test_periodic.o periodic.o
 	$(CC) -Wall -o $@ $^ -lc -lpthread -O0
-	@(sh -c ./$@)
-.PHONY: test_periodic
+	./$@
+
+.PHONY: test_vector test_periodic
 	
 test: test_periodic test_vector
+
 .PHONY: test
