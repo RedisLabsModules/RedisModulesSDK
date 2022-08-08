@@ -34,6 +34,47 @@ void AutoMemory::AutoMemory() {
 	RedisModule_AutoMemory(_ctx);
 }
 
+int Reply::WrongArity() {
+	return RedisModule_WrongArity(_ctx);
+}
+int Reply::LongLong(long long ll) {
+	return RedisModule_ReplyWithLongLong(_ctx, ll);
+}
+int Reply::Error(const char *err) {
+	return RedisModule_ReplyWithError(_ctx, err);
+}
+int Reply::SimpleString(const char *msg) {
+	return RedisModule_ReplyWithSimpleString(_ctx, msg);
+}
+int Reply::Array(long len) {
+	return RedisModule_ReplyWithArray(_ctx, len);
+}
+void Reply::SetArrayLength(long len) {
+	RedisModule_ReplySetArrayLength(_ctx, len);
+}
+int Reply::StringBuffer(const char *buf, size_t len) {
+	return RedisModule_ReplyWithStringBuffer(_ctx, buf, len);
+}
+int Reply::String(String str) {
+	return RedisModule_ReplyWithString(_ctx, str);
+}
+int Reply::Null() {
+	return RedisModule_ReplyWithNull(_ctx);
+}
+int Reply::Double(double d) {
+	return RedisModule_ReplyWithDouble(_ctx, d);
+}
+int Reply::CallReply(CallReply reply) {
+	return RedisModule_ReplyWithCallReply(_ctx, reply);
+}
+
+template<typename... Vargs>
+int Replicate::Replicate(const char *cmdname, const char *fmt, Vargs... vargs) {
+	return RedisModule_Replicate(_ctx, cmdname, fmt, vargs...);
+}
+int Replicate::ReplicateVerbatim() {
+	return RedisModule_ReplicateVerbatim(_ctx);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -48,6 +89,20 @@ void Context::KeyAtPos(int pos) {
 int Context::CreateCommand(const char *name, RedisModuleCmdFunc cmdfunc,
 	const char *strflags, int firstkey, int lastkey, int keystep) {
 	return RedisModule_CreateCommand(_ctx, name, cmdfunc, strflags, firstkey, lastkey, keystep);
+}
+
+int Context::GetSelectedDb() {
+	return RedisModule_GetSelectedDb(_ctx);
+}
+int Context::SelectDb(int newid) {
+	return RedisModule_SelectDb(_ctx, newid);
+}
+unsigned long long Context::GetClientId() {
+	return RedisModule_GetClientId(_ctx);
+}
+template<typename... Vargs>
+void Context::Log(const char *level, const char *fmt, Vargs... vargs) {
+	RedisModule_Log(_ctx, level, fmt, vargs...);
 }
 
 Context::operator RedisModuleCtx *() { return _ctx; }

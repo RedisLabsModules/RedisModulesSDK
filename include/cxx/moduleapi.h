@@ -23,9 +23,29 @@ namespace AutoMemory {
 void AutoMemory();
 }
 
+namespace Reply {
+int WrongArity();
+int LongLong(long long ll);
+int Error(const char *err);
+int SimpleString(const char *msg);
+int Array(long len);
+void SetArrayLength(long len);
+int StringBuffer(const char *buf, size_t len);
+int String(RedisModuleString *str);
+int Null();
+int Double(double d);
+int CallReply(RedisModuleCallReply *reply);
+}
+
+namespace Replicate {
+template<typename... Vargs>
+int Replicate(const char *cmdname, const char *fmt, Vargs... vargs);
+int ReplicateVerbatim();
+}
 struct Module {
 	/*
 	int GetApi(const char *, void *);
+	int SetModuleAttribs(RedisModuleCtx *ctx, const char *name, int ver, int apiver);
 	*/
 };
 
@@ -39,29 +59,15 @@ public:
 	int CreateCommand(const char *name, RedisModuleCmdFunc cmdfunc,
 		const char *strflags, int firstkey, int lastkey, int keystep);
 
-	/*
-	int SetModuleAttribs(const char *name, int ver, int apiver);
-	int WrongArity();
-
 	int GetSelectedDb();
 	int SelectDb(int newid);
-	
-	int ReplyWithLongLong(long long ll);
-	int ReplyWithError(const char *err);
-	int ReplyWithSimpleString(const char *msg);
-	int ReplyWithArray(long len);
-	void ReplySetArrayLength(long len);
-	int ReplyWithStringBuffer(const char *buf, size_t len);
-	int ReplyWithString(RedisModuleString *str);
-	int ReplyWithNull();
-	int ReplyWithDouble(double d);
-	int ReplyWithCallReply(RedisModuleCallReply *reply);
 
-	int Replicate(const char *cmdname, const char *fmt, ...);
-	int ReplicateVerbatim();
 	unsigned long long GetClientId();
-	void Log(const char *level, const char *fmt, ...);
-	RedisModuleBlockedClient *BlockClient(RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback, void (*free_privdata)(void*), long long timeout_ms);
+
+	template<typename... Vargs>
+	void Log(const char *level, const char *fmt, Vargs... vargs);
+
+	/* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
 	int IsBlockedReplyRequest();
 	int IsBlockedTimeoutRequest();
 	void *GetBlockedClientPrivateData();
@@ -86,9 +92,9 @@ public:
 private:
 	RedisModuleBlockedClient *_bc;
 };
-
+*/
 //---------------------------------------------------------------------------------------------
-
+/* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
 class ThreadSafeContext : Context {
 public:
 	ThreadSafeContext(BlockedClient bc);
