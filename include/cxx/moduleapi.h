@@ -26,37 +26,6 @@ void AutoMemory();
 struct Module {
 	/*
 	int GetApi(const char *, void *);
-
-	const char *CallReplyProto(RedisModuleCallReply *reply, size_t *len);
-	void FreeCallReply(RedisModuleCallReply *reply);
-	int CallReplyType(RedisModuleCallReply *reply);
-	long long CallReplyInteger(RedisModuleCallReply *reply);
-	size_t CallReplyLength(RedisModuleCallReply *reply);
-	RedisModuleCallReply *CallReplyArrayElement(RedisModuleCallReply *reply, size_t idx);
-
-	int SetModuleAttribs(RedisModuleCtx *ctx, const char *name, int ver, int apiver);
-	int WrongArity(RedisModuleCtx *ctx);
-	int ReplyWithLongLong(RedisModuleCtx *ctx, long long ll);
-	int GetSelectedDb(RedisModuleCtx *ctx);
-	int SelectDb(RedisModuleCtx *ctx, int newid);
-	int ReplyWithError(RedisModuleCtx *ctx, const char *err);
-	int ReplyWithSimpleString(RedisModuleCtx *ctx, const char *msg);
-	int ReplyWithArray(RedisModuleCtx *ctx, long len);
-	void ReplySetArrayLength(RedisModuleCtx *ctx, long len);
-	int ReplyWithStringBuffer(RedisModuleCtx *ctx, const char *buf, size_t len);
-	int ReplyWithString(RedisModuleCtx *ctx, RedisModuleString *str);
-	int ReplyWithNull(RedisModuleCtx *ctx);
-	int ReplyWithDouble(RedisModuleCtx *ctx, double d);
-	int ReplyWithCallReply(RedisModuleCtx *ctx, RedisModuleCallReply *reply);
-	int Replicate(RedisModuleCtx *ctx, const char *cmdname, const char *fmt, ...);
-	int ReplicateVerbatim(RedisModuleCtx *ctx);
-	unsigned long long GetClientId(RedisModuleCtx *ctx);
-	RedisModuleType *CreateDataType(RedisModuleCtx *ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods);
-	void Log(RedisModuleCtx *ctx, const char *level, const char *fmt, ...);
-	int StringAppendBuffer(RedisModuleCtx *ctx, RedisModuleString *str, const char *buf, size_t len);
-	int IsBlockedReplyRequest(RedisModuleCtx *ctx);
-	int IsBlockedTimeoutRequest(RedisModuleCtx *ctx);
-	void *GetBlockedClientPrivateData(RedisModuleCtx *ctx);
 	*/
 };
 
@@ -64,6 +33,7 @@ struct Module {
 
 class Context {
 public:
+	Context(RedisModuleCtx *ctx);
 	int IsKeysPositionRequest();
 	void KeyAtPos(int pos);
 	int CreateCommand(const char *name, RedisModuleCmdFunc cmdfunc,
@@ -104,19 +74,7 @@ protected:
 };
 
 //---------------------------------------------------------------------------------------------
-
-class ThreadSafeContext : Context {
-public:
-	ThreadSafeContext(BlockedClient bc);
-	~ThreadSafeContext();
-
-	void Lock();
-	int TryLock();
-	void Unlock();
-};
-
-//---------------------------------------------------------------------------------------------
-
+/* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
 class BlockedClient {
 public:
 	BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
@@ -129,6 +87,18 @@ private:
 	RedisModuleBlockedClient *_bc;
 };
 
+//---------------------------------------------------------------------------------------------
+
+class ThreadSafeContext : Context {
+public:
+	ThreadSafeContext(BlockedClient bc);
+	~ThreadSafeContext();
+
+	void Lock();
+	int TryLock();
+	void Unlock();
+};
+*/
 //---------------------------------------------------------------------------------------------
 
 class RMType {
@@ -153,10 +123,9 @@ public:
 
     String(const RedisModuleString *str);
 
-	String(const String&) = delete;
-	String(String&&) = delete;
-	String& operator=(const String&) = delete;
-	String& operator=(String&&) = delete;
+	String(const String& other);
+	String(String&& other);
+	String& operator=(String other);
 
 	void Retain();
 
@@ -170,6 +139,8 @@ public:
 	
     int AppendBuffer(const char *buf, size_t len);
 	
+	void swap(String& other);
+
 	operator RedisModuleString *();
 	operator const RedisModuleString *() const;
 
@@ -178,6 +149,7 @@ private:
 };
 
 int StringCompare(String s1, String s2);
+void swap(String& s1, String& s2);
 
 //---------------------------------------------------------------------------------------------
 
@@ -249,7 +221,7 @@ public:
 	int LastInScoreRange(double min, double max, int minex, int maxex);
 	int FirstInLexRange(String min, String max);
 	int LastInLexRange(String min, String max);
-	RedisModuleString *RangeCurrentElement(double *score);
+	String RangeCurrentElement(double *score);
 	int RangeNext();
 	int RangePrev();
 };
@@ -260,8 +232,10 @@ class Hash : Key {
 public:
 	Hash(String keyname, int mode);
 
-	int Set(int flags, ...);
-	int Get(int flags, ...);
+	template<typename... Vargs>
+	int Set(int flags, Vargs... vargs);
+	template<typename... Vargs>
+	int Get(int flags, Vargs... vargs);
 };
 
 //---------------------------------------------------------------------------------------------
@@ -288,9 +262,11 @@ public:
 	void SaveFloat(float value);
 	float LoadFloat();
 	
-	void EmitAOF(const char *cmdname, const char *fmt, ...);
+	template<typename... Vargs>
+	void EmitAOF(const char *cmdname, const char *fmt, Vargs... vargs);
 
-	void LogIOError(const char *levelstr, const char *fmt, ...);
+	template<typename... Vargs>
+	void LogIOError(const char *levelstr, const char *fmt, Vargs... vargs);
 private:
 	RedisModuleIO *_io;
 };
@@ -299,12 +275,14 @@ private:
 
 class CallReply {
 public:
-	CallReply(const char *cmdname, const char *fmt, ...);
+	template<typename... Vargs>
+	CallReply(const char *cmdname, const char *fmt, Vargs... vargs);
+	CallReply(RedisModuleCallReply *reply);
 	~CallReply();
 	const char *StringPtr(size_t &len);
 	String CreateString();
 
-	const char *Proto(size_t *len);
+	const char *Proto(size_t &len);
 	int Type();
 	long long Integer();
 	size_t Length();
@@ -324,7 +302,7 @@ struct Args {
 
 template <class T>
 struct Command {
-	Command() {}
+	Command();
 	virtual int Run(const Args &args);
 	
 	static int cmdfunc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
