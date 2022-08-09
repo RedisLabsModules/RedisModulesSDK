@@ -26,7 +26,7 @@ void *Alloc::PoolAlloc(Context ctx, size_t bytes) {
 	return RedisModule_PoolAlloc(ctx, bytes);
 }
 
-long long Time::Milliseconds() {
+mstime_t Time::Milliseconds() {
 	return RedisModule_Milliseconds();
 }
 
@@ -112,7 +112,6 @@ Context::operator RedisModuleCtx *() noexcept { return _ctx; }
 Context::operator const RedisModuleCtx *() const noexcept { return _ctx; }
 
 //---------------------------------------------------------------------------------------------
-/* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
 
 BlockedClient::BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
 	void (*free_privdata)(RedisModuleCtx *, void*), long long timeout_ms)
@@ -145,7 +144,7 @@ int ThreadSafeContext::TryLock() {
 void ThreadSafeContext::Unlock() {
 	RedisModule_ThreadSafeContextUnlock(Context::_ctx);
 }
-*/
+
 //---------------------------------------------------------------------------------------------
 
 RMType::RMType(Context ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods)
@@ -189,6 +188,7 @@ long long String::ToLongLong() const {
 	}
 	return ll;
 }
+
 double String::ToDouble() const {
 	double d;
 	if (RedisModule_StringToDouble(_str, &d) != REDISMODULE_OK) {
@@ -196,6 +196,7 @@ double String::ToDouble() const {
 	}
 	return d;
 }
+
 long double String::ToLongDouble() const {
 	long double ld = 0;
 	if (RedisModule_StringToLongDouble(_str, &ld) != REDISMODULE_OK) {
@@ -338,6 +339,7 @@ template<typename... Vargs>
 int Hash::Set(int flags, Vargs... vargs) {
 	return RedisModule_HashSet(_key, flags, vargs...);
 }
+
 template<typename... Vargs>
 int Hash::Get(int flags, Vargs... vargs) {
 	return RedisModule_HashGet(_key, flags, vargs...);
