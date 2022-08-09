@@ -22,65 +22,55 @@ void Alloc::Free(void *ptr) {
 char *Alloc::Strdup(const char *str) {
 	return RedisModule_Strdup(str);
 }
-void *Alloc::PoolAlloc(size_t bytes) {
-	return RedisModule_PoolAlloc(_ctx, bytes);
+void *Alloc::PoolAlloc(Context ctx, size_t bytes) {
+	return RedisModule_PoolAlloc(ctx, bytes);
 }
 
 long long Time::Milliseconds() {
 	return RedisModule_Milliseconds();
 }
 
-void AutoMemory::AutoMemory() {
-	RedisModule_AutoMemory(_ctx);
+int Reply::WrongArity(Context ctx) {
+	return RedisModule_WrongArity(ctx);
 }
-
-int Reply::WrongArity() {
-	return RedisModule_WrongArity(_ctx);
+int Reply::LongLong(Context ctx, long long ll) {
+	return RedisModule_ReplyWithLongLong(ctx, ll);
 }
-int Reply::LongLong(long long ll) {
-	return RedisModule_ReplyWithLongLong(_ctx, ll);
+int Reply::Error(Context ctx, const char *err) {
+	return RedisModule_ReplyWithError(ctx, err);
 }
-int Reply::Error(const char *err) {
-	return RedisModule_ReplyWithError(_ctx, err);
+int Reply::SimpleString(Context ctx, const char *msg) {
+	return RedisModule_ReplyWithSimpleString(ctx, msg);
 }
-int Reply::SimpleString(const char *msg) {
-	return RedisModule_ReplyWithSimpleString(_ctx, msg);
+int Reply::Array(Context ctx, long len) {
+	return RedisModule_ReplyWithArray(ctx, len);
 }
-int Reply::Array(long len) {
-	return RedisModule_ReplyWithArray(_ctx, len);
+void Reply::SetArrayLength(Context ctx, long len) {
+	RedisModule_ReplySetArrayLength(ctx, len);
 }
-void Reply::SetArrayLength(long len) {
-	RedisModule_ReplySetArrayLength(_ctx, len);
+int Reply::StringBuffer(Context ctx, const char *buf, size_t len) {
+	return RedisModule_ReplyWithStringBuffer(ctx, buf, len);
 }
-int Reply::StringBuffer(const char *buf, size_t len) {
-	return RedisModule_ReplyWithStringBuffer(_ctx, buf, len);
+int Reply::String(Context ctx, RedisModule::String& str) {
+	return RedisModule_ReplyWithString(ctx, str);
 }
-int Reply::String(String str) {
-	return RedisModule_ReplyWithString(_ctx, str);
+int Reply::Null(Context ctx) {
+	return RedisModule_ReplyWithNull(ctx);
 }
-int Reply::Null() {
-	return RedisModule_ReplyWithNull(_ctx);
+int Reply::Double(Context ctx, double d) {
+	return RedisModule_ReplyWithDouble(ctx, d);
 }
-int Reply::Double(double d) {
-	return RedisModule_ReplyWithDouble(_ctx, d);
-}
-int Reply::CallReply(CallReply reply) {
-	return RedisModule_ReplyWithCallReply(_ctx, reply);
-}
-
-template<typename... Vargs>
-int Replicate::Replicate(const char *cmdname, const char *fmt, Vargs... vargs) {
-	return RedisModule_Replicate(_ctx, cmdname, fmt, vargs...);
-}
-int Replicate::ReplicateVerbatim() {
-	return RedisModule_ReplicateVerbatim(_ctx);
+int Reply::CallReply(Context ctx, RedisModule::CallReply reply) {
+	return RedisModule_ReplyWithCallReply(ctx, reply);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(RedisModuleCtx *ctx) : _ctx(ctx) {}
+void Context::AutoMemory() {
+	RedisModule_AutoMemory(_ctx);
+}
 
-int Context::IsKeysPositionRequest() {
+bool Context::IsKeysPositionRequest() {
 	return RedisModule_IsKeysPositionRequest(_ctx);
 }
 void Context::KeyAtPos(int pos) {
@@ -94,19 +84,32 @@ int Context::CreateCommand(const char *name, RedisModuleCmdFunc cmdfunc,
 int Context::GetSelectedDb() {
 	return RedisModule_GetSelectedDb(_ctx);
 }
-int Context::SelectDb(int newid) {
-	return RedisModule_SelectDb(_ctx, newid);
+void Context::SelectDb(int newid) {
+	if (RedisModule_SelectDb(_ctx, newid) != REDISMODULE_OK) {
+		throw ...;
+	}
 }
 unsigned long long Context::GetClientId() {
 	return RedisModule_GetClientId(_ctx);
 }
 template<typename... Vargs>
-void Context::Log(const char *level, const char *fmt, Vargs... vargs) {
+void Context::Log(const char *level, const char *fmt, Vargs... vargs) noexcept {
 	RedisModule_Log(_ctx, level, fmt, vargs...);
 }
 
-Context::operator RedisModuleCtx *() { return _ctx; }
-Context::operator const RedisModuleCtx *() const { return _ctx; }
+template<typename... Vargs>
+void Context::Replicate(const char *cmdname, const char *fmt, Vargs... vargs) {
+	if (RedisModule_Replicate(_ctx, cmdname, fmt, vargs...) != REDISMODULE_OK) {
+		throw ...;
+	}
+}
+void Context::ReplicateVerbatim() noexcept {
+	RedisModule_ReplicateVerbatim(_ctx);
+}
+
+Context::Context(RedisModuleCtx *ctx) : _ctx(ctx) { }
+Context::operator RedisModuleCtx *() noexcept { return _ctx; }
+Context::operator const RedisModuleCtx *() const noexcept { return _ctx; }
 
 //---------------------------------------------------------------------------------------------
 /* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
@@ -127,26 +130,26 @@ BlockedClient::operator RedisModuleBlockedClient *() { return _bc; }
 //---------------------------------------------------------------------------------------------
 
 ThreadSafeContext::ThreadSafeContext(BlockedClient bc) {
-	_ctx = RedisModule_GetThreadSafeContext(bc);
+	Context::_ctx = RedisModule_GetThreadSafeContext(bc);
 }
 ThreadSafeContext::~ThreadSafeContext() {
-	RedisModule_FreeThreadSafeContext(_ctx);
+	RedisModule_FreeThreadSafeContext(Context::_ctx);
 }
 
 void ThreadSafeContext::Lock() {
-	RedisModule_ThreadSafeContextLock(_ctx);
+	RedisModule_ThreadSafeContextLock(Context::_ctx);
 }
 int ThreadSafeContext::TryLock() {
-	return RedisModule_ThreadSafeContextTryLock(_ctx);
+	return RedisModule_ThreadSafeContextTryLock(Context::_ctx);
 }
 void ThreadSafeContext::Unlock() {
-	RedisModule_ThreadSafeContextUnlock(_ctx);
+	RedisModule_ThreadSafeContextUnlock(Context::_ctx);
 }
 */
 //---------------------------------------------------------------------------------------------
 
-RMType::RMType(const char *name, int encver, RedisModuleTypeMethods *typemethods)
-	: _type(RedisModule_CreateDataType(_ctx, name, encver, typemethods))
+RMType::RMType(Context ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods)
+	: _type(RedisModule_CreateDataType(ctx, name, encver, typemethods))
 { }
 RMType::RMType(RedisModuleType *type) : _type(type) {}
 
@@ -156,74 +159,72 @@ RMType::operator const RedisModuleType *() const { return _type; }
 //---------------------------------------------------------------------------------------------
 
 String::String(const char *ptr, size_t len)
-	: _str(RedisModule_CreateString(_ctx, ptr, len))
+	: _str(RedisModule_CreateString(NULL, ptr, len))
 { }
 
 String::String(long long ll)
-	: _str(RedisModule_CreateStringFromLongLong(_ctx, ll))
+	: _str(RedisModule_CreateStringFromLongLong(NULL, ll))
 { }
 
 String::String(const RedisModuleString *str)
-	: _str(RedisModule_CreateStringFromString(_ctx, str))
+	: _str(RedisModule_CreateStringFromString(NULL, str))
 { }
 
-String::String(const String& other) : _str(other._str) { Retain(); }
-String::String(String&& other) : _str(nullptr) { swap(other); }
-String& String::operator=(String other) {
-	swap(other);
-	return *this;
-}
-
 void String::Retain() {
-	RedisModule_RetainString(_ctx, _str);
+	RedisModule_RetainString(NULL, _str);
 }
 
 String::~String() {
-	if (_str != nullptr) {
-		RedisModule_FreeString(_ctx, _str);
-	}
+	RedisModule_FreeString(NULL, _str);
 }
 
 const char *String::PtrLen(size_t &len) const {
 	return RedisModule_StringPtrLen(_str, &len);
 }
 
-int String::ToLongLong(long long &ll) const {
-	return RedisModule_StringToLongLong(_str, &ll);
+long long String::ToLongLong() const {
+	long long ll;
+	if (RedisModule_StringToLongLong(_str, &ll) != REDISMODULE_OK) {
+		throw ...;
+	}
+	return ll;
 }
-int String::ToDouble(double &d) const {
-	return RedisModule_StringToDouble(_str, &d);
+double String::ToDouble() const {
+	double d;
+	if (RedisModule_StringToDouble(_str, &d) != REDISMODULE_OK) {
+		throw ...;
+	}
+	return d;
 }
-int String::ToLongDouble(long double &ld) const {
-	return RedisModule_StringToLongDouble(_str, &ld);
+long double String::ToLongDouble() const {
+	long double ld = 0;
+	if (RedisModule_StringToLongDouble(_str, &ld) != REDISMODULE_OK) {
+		throw ...;
+	}
+	return ld;
 }
 
-int String::AppendBuffer(const char *buf, size_t len) {
-	return RedisModule_StringAppendBuffer(_ctx, _str, buf, len);
-}
-
-void String::swap(String& other) {
-	std::swap(_str, other._str);
+void String::AppendBuffer(const char *buf, size_t len) {
+	if (RedisModule_StringAppendBuffer(NULL, _str, buf, len) != REDISMODULE_OK) {
+		throw ...;
+	}
 }
 
 String::operator RedisModuleString *() { return _str; }
 String::operator const RedisModuleString *() const { return _str; }
 
-int StringCompare(String s1, String s2) {
+int StringCompare(String& s1, String& s2) noexcept {
 	return RedisModule_StringCompare(s1, s2);
-}
-void swap(String& s1, String& s2) {
-	s1.swap(s2);
 }
 
 //---------------------------------------------------------------------------------------------
 
-Key::Key(String keyname, int mode) // OpenKey
-	: _key((RedisModuleKey *)RedisModule_OpenKey(_ctx, keyname, mode))
+Key::Key(Context ctx, String& keyname, int mode) // OpenKey
+	: _key((RedisModuleKey *)RedisModule_OpenKey(ctx, keyname, mode))
 { }
 Key::Key(RedisModuleKey *key) : _key(key) { }
 
-Key::~Key() { // CloseKey
+Key::~Key() noexcept { // CloseKey
 	RedisModule_CloseKey(_key);
 }
 int Key::DeleteKey() {
@@ -261,9 +262,9 @@ Key::operator const RedisModuleKey *() const { return _key; }
 
 //---------------------------------------------------------------------------------------------
 
-StringKey::StringKey(String keyname, int mode) : Key(keyname, mode) {}
+StringKey::StringKey(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
-int StringKey::Set(String str) {
+int StringKey::Set(String& str) {
 	return RedisModule_StringSet(_key, str);
 }
 char *StringKey::DMA(size_t &len, int mode) {
@@ -275,29 +276,29 @@ int StringKey::Truncate(size_t newlen) {
 
 //---------------------------------------------------------------------------------------------
 
-List::List(String keyname, int mode) : Key(keyname, mode) {}
+List::List(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
-int List::Push(int where, String ele) {
+int List::Push(int where, String& ele) {
 	return RedisModule_ListPush(_key, where, ele);
 }
-RedisModuleString *List::Pop(int where) {
-	return RedisModule_ListPop(_key, where);
+String List::Pop(int where) {
+	return String(RedisModule_ListPop(_key, where));
 }
 
 //---------------------------------------------------------------------------------------------
 
-Zset::Zset(String keyname, int mode) : Key(keyname, mode) {}
+Zset::Zset(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
-int Zset::Add(double score, String ele, int *flagsptr) {
+int Zset::Add(double score, String& ele, int *flagsptr) {
 	return RedisModule_ZsetAdd(_key, score, ele, flagsptr);
 }
-int Zset::Incrby(double score, String ele, int *flagsptr, double *newscore) {
+int Zset::Incrby(double score, String& ele, int *flagsptr, double *newscore) {
 	return RedisModule_ZsetIncrby(_key, score, ele, flagsptr, newscore);
 }
-int Zset::Rem(String ele, int *deleted) {
+int Zset::Rem(String& ele, int *deleted) {
 	return RedisModule_ZsetRem(_key, ele, deleted);
 }
-int Zset::Score(String ele, double *score) {
+int Zset::Score(String& ele, double *score) {
 	return RedisModule_ZsetScore(_key, ele, score);
 }
 
@@ -313,10 +314,10 @@ int Zset::FirstInScoreRange(double min, double max, int minex, int maxex) {
 int Zset::LastInScoreRange(double min, double max, int minex, int maxex) {
 	return RedisModule_ZsetLastInScoreRange(_key, min, max, minex, maxex);
 }
-int Zset::FirstInLexRange(String min, String max) {
+int Zset::FirstInLexRange(String& min, String& max) {
 	return RedisModule_ZsetFirstInLexRange(_key, min, max);
 }
-int Zset::LastInLexRange(String min, String max) {
+int Zset::LastInLexRange(String& min, String& max) {
 	return RedisModule_ZsetLastInLexRange(_key, min, max);
 }
 String Zset::RangeCurrentElement(double *score) {
@@ -331,7 +332,7 @@ int Zset::RangePrev() {
 
 //---------------------------------------------------------------------------------------------
 
-Hash::Hash(String keyname, int mode) : Key(keyname, mode) {}
+Hash::Hash(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
 template<typename... Vargs>
 int Hash::Set(int flags, Vargs... vargs) {
@@ -362,11 +363,11 @@ int64_t IO::LoadSigned() {
 	return RedisModule_LoadSigned(_io);
 }
 
-void IO::SaveString(String s) {
+void IO::SaveString(String& s) {
 	RedisModule_SaveString(_io, s);
 }
 String IO::LoadString() {
-	return RedisModule_LoadString(_io);
+	return String(RedisModule_LoadString(_io));
 }
 
 void IO::SaveStringBuffer(const char *str, size_t len) {
@@ -404,7 +405,7 @@ void IO::LogIOError(const char *levelstr, const char *fmt, Vargs... vargs) {
 
 template<typename... Vargs>
 CallReply::CallReply(const char *cmdname, const char *fmt, Vargs... vargs) 
-	: _reply(RedisModule_Call(_ctx, cmdname, fmt, vargs...))
+	: _reply(RedisModule_Call(Context::_ctx, cmdname, fmt, vargs...))
 { }
 CallReply::CallReply(RedisModuleCallReply *reply) : _reply(reply) {}
 CallReply::~CallReply() {
@@ -432,6 +433,19 @@ size_t CallReply::Length() {
 CallReply CallReply::ArrayElement(size_t idx) {
 	return CallReply(RedisModule_CallReplyArrayElement(_reply, idx));
 }
+CallReply::operator RedisModuleCallReply *() { return _reply; }
+
+//---------------------------------------------------------------------------------------------
+
+Args::Args(int argc, RedisModuleString **argv)
+	: _args(std::vector<String>())
+{
+	_args.reserve(argc);
+	RedisModuleString *arg = NULL;
+	while ((arg = *argv++) != NULL) {
+		_args.emplace_back(arg);
+	}
+}
 
 //---------------------------------------------------------------------------------------------
 
@@ -439,10 +453,8 @@ template <class T>
 Command<T>::Command() {}
 template <class T>
 int Command<T>::Run(const Args &args) { return REDISMODULE_OK; }
-
 template <class T>
-int Command<T>::cmdfunc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-	Args args(argv, argc);
+int Command<T>::cmdfunc(Context ctx, Args& args) {
 	T cmd{ctx};
 	return cmd.Run(args);
 }

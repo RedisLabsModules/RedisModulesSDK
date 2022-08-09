@@ -1,6 +1,7 @@
 #pragma once
 
 #include "redismodule.h"
+#include <vector>
 
 namespace RedisModule {
 
@@ -12,70 +13,48 @@ void *Calloc(size_t nmemb, size_t size);
 void *Realloc(void *ptr, size_t bytes);
 void Free(void *ptr);
 char *Strdup(const char *str);
-void *PoolAlloc(size_t bytes);
+void *PoolAlloc(Context ctx, size_t bytes);
 } // namespace Alloc
 
 namespace Time {
 long long Milliseconds();
 }
 
-namespace AutoMemory {
-void AutoMemory();
-}
-
-namespace Reply {
-int WrongArity();
-int LongLong(long long ll);
-int Error(const char *err);
-int SimpleString(const char *msg);
-int Array(long len);
-void SetArrayLength(long len);
-int StringBuffer(const char *buf, size_t len);
-int String(RedisModuleString *str);
-int Null();
-int Double(double d);
-int CallReply(RedisModuleCallReply *reply);
-}
-
-namespace Replicate {
-template<typename... Vargs>
-int Replicate(const char *cmdname, const char *fmt, Vargs... vargs);
-int ReplicateVerbatim();
-}
-struct Module {
-	/*
-	int GetApi(const char *, void *);
-	int SetModuleAttribs(RedisModuleCtx *ctx, const char *name, int ver, int apiver);
-	*/
-};
-
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 class Context {
 public:
-	Context(RedisModuleCtx *ctx);
-	int IsKeysPositionRequest();
-	void KeyAtPos(int pos);
+	void AutoMemory() noexcept;
+
 	int CreateCommand(const char *name, RedisModuleCmdFunc cmdfunc,
 		const char *strflags, int firstkey, int lastkey, int keystep);
 
-	int GetSelectedDb();
-	int SelectDb(int newid);
+	bool IsKeysPositionRequest() noexcept;
+	void KeyAtPos(int pos) noexcept;
 
-	unsigned long long GetClientId();
+	int GetSelectedDb() noexcept;
+	void SelectDb(int newid);
+
+	unsigned long long GetClientId() noexcept;
 
 	template<typename... Vargs>
-	void Log(const char *level, const char *fmt, Vargs... vargs);
+	void Log(const char *level, const char *fmt, Vargs... vargs) noexcept;
+
+	template<typename... Vargs>
+	void Replicate(const char *cmdname, const char *fmt, Vargs... vargs);
+	void ReplicateVerbatim() noexcept;
 
 	/* only relevant ifdef REDISMODULE_EXPERIMENTAL_API
 	int IsBlockedReplyRequest();
 	int IsBlockedTimeoutRequest();
 	void *GetBlockedClientPrivateData();
 	*/
+	Context(RedisModuleCtx *ctx);
 
-	operator RedisModuleCtx *();
-	operator const RedisModuleCtx *() const;
-protected:
+	operator RedisModuleCtx *() noexcept;
+	operator const RedisModuleCtx *() const noexcept;
+
+private:
 	RedisModuleCtx *_ctx;
 };
 
@@ -109,11 +88,11 @@ public:
 
 class RMType {
 public:
-	RMType(const char *name, int encver, RedisModuleTypeMethods *typemethods);
+	RMType(Context ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods);
 	RMType(RedisModuleType *type);
 
-	operator RedisModuleType *();
-	operator const RedisModuleType *() const;
+	operator RedisModuleType *() noexcept;
+	operator const RedisModuleType *() const noexcept;
 
 private:
 	RedisModuleType *_type;
@@ -124,44 +103,39 @@ private:
 class String {
 public:
     String(const char *ptr, size_t len);
-
     String(long long ll);
-
     String(const RedisModuleString *str);
 
-	String(const String& other);
-	String(String&& other);
-	String& operator=(String other);
+	String(const String& other) = delete;
+	String(String&& other) = default;
+	String& operator=(const String&) = delete;
+	String& operator=(String&&) = delete;
+    ~String();
 
 	void Retain();
 
-    ~String();
-	
-	const char *PtrLen(size_t &len) const;
+	const char *PtrLen(size_t &len) const noexcept;
 
-	int ToLongLong(long long &ll) const;
-	int ToDouble(double &d) const;
-    int ToLongDouble(long double &ld) const;
+	long long ToLongLong() const;
+	double ToDouble() const;
+    long double ToLongDouble() const;
 	
-    int AppendBuffer(const char *buf, size_t len);
-	
-	void swap(String& other);
+    void AppendBuffer(const char *buf, size_t len);
 
-	operator RedisModuleString *();
-	operator const RedisModuleString *() const;
+	operator RedisModuleString *() noexcept;
+	operator const RedisModuleString *() const noexcept;
 
 private:
 	RedisModuleString *_str;
 };
 
-int StringCompare(String s1, String s2);
-void swap(String& s1, String& s2);
+int StringCompare(String& s1, String& s2) noexcept;
 
 //---------------------------------------------------------------------------------------------
 
 class Key {
 public:
-	Key(String keyname, int mode);
+	Key(Context ctx, String& keyname, int mode);
 	Key(RedisModuleKey *key);
 
 	Key(const Key&) = delete;
@@ -169,23 +143,22 @@ public:
 	Key& operator=(const Key&) = delete;
 	Key& operator=(Key&&) = delete;
 
-	~Key();
+	~Key() noexcept;
 	int DeleteKey();
 	
-	int Type();
+	size_t ValueLength() noexcept;
 	
-	size_t ValueLength();
-	
-	mstime_t GetExpire();
+	mstime_t GetExpire() noexcept;
 	int SetExpire(mstime_t expire);
 
-	RMType GetType();
+	int Type() noexcept;
+	RMType GetType() noexcept;
 
-	void *GetValue();
+	void *GetValue() noexcept;
 	int SetValue(RMType mt, void *value);
 
-	operator RedisModuleKey *();
-	operator const RedisModuleKey *() const;
+	operator RedisModuleKey *() noexcept;
+	operator const RedisModuleKey *() const noexcept;
 
 protected:
     RedisModuleKey *_key;
@@ -194,9 +167,9 @@ protected:
 //---------------------------------------------------------------------------------------------
 
 class StringKey : Key {
-	StringKey(String keyname, int mode);
+	StringKey(Context ctx, String& keyname, int mode);
 
-	int Set(String str);
+	int Set(String& str);
 	char *DMA(size_t &len, int mode); // direct memory access
 	int Truncate(size_t newlen);
 };
@@ -204,29 +177,29 @@ class StringKey : Key {
 //---------------------------------------------------------------------------------------------
 
 struct List : Key {
-	List(String keyname, int mode);
+	List(Context ctx, String& keyname, int mode);
 
-	int Push(int where, String ele);
-	RedisModuleString *Pop(int where);
+	int Push(int where, String& ele);
+	String Pop(int where);
 };
 
 //---------------------------------------------------------------------------------------------
 
 class Zset : Key {
 public:
-	Zset(String keyname, int mode);
+	Zset(Context ctx, String& keyname, int mode);
 
-	int Add(double score, String ele, int *flagsptr);
-	int Incrby(double score, String ele, int *flagsptr, double *newscore);
-	int Rem(String ele, int *deleted);
-	int Score(String ele, double *score);
+	int Add(double score, String& ele, int *flagsptr);
+	int Incrby(double score, String& ele, int *flagsptr, double *newscore);
+	int Rem(String& ele, int *deleted);
+	int Score(String& ele, double *score);
 
 	void RangeStop();
 	int RangeEndReached();
 	int FirstInScoreRange(double min, double max, int minex, int maxex);
 	int LastInScoreRange(double min, double max, int minex, int maxex);
-	int FirstInLexRange(String min, String max);
-	int LastInLexRange(String min, String max);
+	int FirstInLexRange(String& min, String& max);
+	int LastInLexRange(String& min, String& max);
 	String RangeCurrentElement(double *score);
 	int RangeNext();
 	int RangePrev();
@@ -236,7 +209,7 @@ public:
 
 class Hash : Key {
 public:
-	Hash(String keyname, int mode);
+	Hash(Context ctx, String& keyname, int mode);
 
 	template<typename... Vargs>
 	int Set(int flags, Vargs... vargs);
@@ -256,7 +229,7 @@ public:
 	void SaveSigned(int64_t value);
 	int64_t LoadSigned();
 	
-	void SaveString(String s);
+	void SaveString(String& s);
 	String LoadString();
 
 	void SaveStringBuffer(const char *str, size_t len);
@@ -293,15 +266,20 @@ public:
 	long long Integer();
 	size_t Length();
 	CallReply ArrayElement(size_t idx);
+
+	operator RedisModuleCallReply *();
 private:
 	RedisModuleCallReply *_reply;
 };
 
 //---------------------------------------------------------------------------------------------
 
-struct Args {
-	int argc;
-	RedisModuleString **argv;
+class Args {
+public:
+	Args(int argc, RedisModuleString **argv);
+
+private:
+	std::vector<String> _args;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -309,10 +287,26 @@ struct Args {
 template <class T>
 struct Command {
 	Command();
-	virtual int Run(const Args &args);
+	virtual int Run(const Args& args);
 	
-	static int cmdfunc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+	static int cmdfunc(Context ctx, Args& args);
 };
+
+//---------------------------------------------------------------------------------------------
+
+namespace Reply {
+int WrongArity(Context ctx);
+int LongLong(Context ctx, long long ll);
+int Error(Context ctx, const char *err);
+int SimpleString(Context ctx, const char *msg);
+int Array(Context ctx, long len);
+void SetArrayLength(Context ctx, long len);
+int StringBuffer(Context ctx, const char *buf, size_t len);
+int String(Context ctx, RedisModule::String& str);
+int Null(Context ctx);
+int Double(Context ctx, double d);
+int CallReply(Context ctx, RedisModule::CallReply reply);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
