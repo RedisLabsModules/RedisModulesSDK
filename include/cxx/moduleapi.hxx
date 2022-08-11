@@ -507,6 +507,7 @@ template<typename... Vargs>
 void IO::EmitAOF(const char *cmdname, const char *fmt, Vargs... vargs) {
 	RedisModule_EmitAOF(_io, cmdname, fmt, vargs...);
 }
+
 //---------------------------------------------------------------------------------------------
 
 template<typename... Vargs>
@@ -517,6 +518,27 @@ CallReply::CallReply(RedisModuleCallReply *reply) : _reply(reply) {}
 CallReply::~CallReply() noexcept {
 	RedisModule_FreeCallReply(_reply);
 }
+int CallReply::Type() {
+	return RedisModule_CallReplyType(_reply);
+}
+size_t CallReply::Length() {
+	return RedisModule_CallReplyLength(_reply);
+}
+long long CallReply::Integer() noexcept {
+	return RedisModule_CallReplyInteger(_reply);
+}
+double CallReply::Double() noexcept {
+	return RedisModule_CallReplyDouble(_reply);
+}
+const char *CallReply::BigNumber(size_t& len) {
+	return RedisModule_CallReplyBigNumber(_reply, &len);
+}
+const char *CallReply::Verbatim(size_t& len, const char **format) {
+	return RedisModule_CallReplyVerbatim(_reply, &len, format);
+}
+bool CallReply::Bool() noexcept {
+	return RedisModule_CallReplyBool(_reply);
+}
 const char *CallReply::StringPtr(size_t &len) {
 	return RedisModule_CallReplyStringPtr(_reply, &len);
 }
@@ -524,22 +546,74 @@ String CallReply::CreateString() {
 	return RedisModule_CreateStringFromCallReply(_reply);
 }
 
-const char *CallReply::Proto(size_t &len) {
+CallReply CallReply::ArrayElement(size_t idx) {
+	return RedisModule_CallReplyArrayElement(_reply, idx);
+}
+CallReply CallReply::SetElement(size_t idx) {
+	return RedisModule_CallReplySetElement(_reply, idx);
+}
+int CallReply::MapElement(size_t idx, CallReply& key, CallReply& val) {
+	// TODO: not be vile
+	// &key doesn't work: cannot convert ‘RM::CallReply*’ to ‘RMCallReply**’
+	// &static_cast<RMCallReply*>(key): lvalue required as unary ‘&’ operand
+	// &key._reply would work, except that breaks encapsulation.
+	RedisModuleCallReply *tempkey = key;
+	RedisModuleCallReply *tempval = val;
+	int res = RedisModule_CallReplyMapElement(_reply, idx, &tempkey, &tempval);
+	key = tempkey;
+	val = tempval;
+	return res;
+}
+int CallReply::AttributeElement(size_t idx, CallReply& key, CallReply& val) {
+	RedisModuleCallReply *tempkey = key;
+	RedisModuleCallReply *tempval = val;
+	int res = RedisModule_CallReplyAttributeElement(_reply, idx, &tempkey, &tempval);
+	key = tempkey;
+	val = tempval;
+	return res;
+}
+CallReply CallReply::Attribute() {
+	return RedisModule_CallReplyAttribute(_reply);
+}
+
+const char *CallReply::Protocol(size_t &len) {
 	return RedisModule_CallReplyProto(_reply, &len);
 }
-int CallReply::Type() {
-	return RedisModule_CallReplyType(_reply);
+CallReply::operator RedisModuleCallReply *() noexcept { return _reply; }
+
+//---------------------------------------------------------------------------------------------
+
+User::User(const char *name) : _user(RedisModule_CreateModuleUser(name)) {}
+User::User(String& name) : _user(RedisModule_GetModuleUserFromUserName(name)) {}
+User::~User() noexcept {
+	RedisModule_FreeModuleUser(_user);
 }
-long long CallReply::Integer() {
-	return RedisModule_CallReplyInteger(_reply);
+
+int User::SetACL(const char* acl) {
+	return RedisModule_SetModuleUserACL(_user, acl);
 }
-size_t CallReply::Length() {
-	return RedisModule_CallReplyLength(_reply);
+int User::ACLCheckCommandPermissions(String *argv, int argc) {
+	return RedisModule_ACLCheckCommandPermissions(_user, argv, argc);
 }
-CallReply CallReply::ArrayElement(size_t idx) {
-	return CallReply(RedisModule_CallReplyArrayElement(_reply, idx));
+int User::ACLCheckKeyPermissions(String& key, int flags) {
+	return RedisModule_ACLCheckKeyPermissions(_user, key, flags);
 }
-CallReply::operator RedisModuleCallReply *() { return _reply; }
+int User::ACLCheckChannelPermissions(String& ch, int flags) {
+	return RedisModule_ACLCheckChannelPermissions(_user, ch, flags);
+}
+void User::ACLAddLogEntry(Context ctx, String& object, RedisModuleACLLogEntryReason reason) {
+	return RedisModule_ACLAddLogEntry(ctx, _user, object, reason);
+}
+
+String User::GetCurrentUserName(Context ctx) {
+	return RedisModule_GetCurrentUserName(ctx);
+}
+int User::RedactClientCommandArgument(Context ctx, int pos) {
+	return RedisModule_RedactClientCommandArgument(ctx, pos);
+}
+
+User::operator RedisModuleUser *() noexcept { return _user; }
+
 
 //---------------------------------------------------------------------------------------------
 

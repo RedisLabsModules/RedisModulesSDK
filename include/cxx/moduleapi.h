@@ -230,27 +230,27 @@ public:
 	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
 	CallReply(RedisModuleCallReply *reply);
 	~CallReply() noexcept;
-	const char *StringPtr(size_t &len);
-	String CreateString();
 
-	const char *Proto(size_t &len);
 	int Type();
 	size_t Length();
 
-	int Bool();
-	long long Integer();
-	double Double();
-	const char *BigNumber(size_t *len);
-	const char *Verbatim(size_t *len, const char **format);
+	long long Integer() noexcept;
+	double Double() noexcept;
+	const char *BigNumber(size_t& len);
+	const char *Verbatim(size_t& len, const char **format);
+	bool Bool() noexcept;
+	const char *StringPtr(size_t& len);
+	String CreateString();
 	
+	CallReply ArrayElement(size_t idx);
 	CallReply SetElement(size_t idx);
-	int MapElement(size_t idx, CallReply *key, CallReply *val);
-	int AttributeElement(size_t idx, CallReply *key, CallReply *val);
+	int MapElement(size_t idx, CallReply& key, CallReply& val);
+	int AttributeElement(size_t idx, CallReply& key, CallReply& val);
 	CallReply Attribute();
 
-	CallReply ArrayElement(size_t idx);
+	const char *Protocol(size_t& len);
 
-	operator RedisModuleCallReply *();
+	operator RedisModuleCallReply *() noexcept;
 private:
 	RedisModuleCallReply *_reply;
 };
@@ -266,11 +266,13 @@ public:
 	int SetACL(const char* acl);
 	int ACLCheckCommandPermissions(String *argv, int argc);
 	int ACLCheckKeyPermissions(String& key, int flags);
-	int ACLCheckChannelPermissions(String& ch, int literal);
+	int ACLCheckChannelPermissions(String& ch, int flags);
 	void ACLAddLogEntry(Context ctx, String& object, RedisModuleACLLogEntryReason reason);
 
 	static String GetCurrentUserName(Context ctx);
 	static int RedactClientCommandArgument(Context ctx, int pos);
+
+	operator RedisModuleUser *() noexcept;
 
 private:
 	RedisModuleUser *_user;
