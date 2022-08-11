@@ -37,7 +37,7 @@ class ThreadSafeContext {
 public:
 	ThreadSafeContext(BlockedClient bc);
 	ThreadSafeContext(Context ctx);
-	~ThreadSafeContext();
+	~ThreadSafeContext() noexcept;
 
 	void Lock();
 	int TryLock();
@@ -73,27 +73,32 @@ public:
 	String(String&& other) = default;
 	String& operator=(const String&) = delete;
 	String& operator=(String&&) = delete;
-    ~String();
+    ~String() noexcept;
 
 	void Retain();
 
 	const char *PtrLen(size_t &len) const noexcept;
     void AppendBuffer(const char *buf, size_t len);
-	void Trim();
+	void Trim() noexcept;
 
 	int ToLongLong(long long& ll) const;
+	long long ToLongLong() const;
 	int ToDouble(double& d) const;
+	double ToDouble() const;
     int ToLongDouble(long double& ld) const;
-	int ULongLong(unsigned long long& ull) const;
+    long double ToLongDouble() const;
+	int ToULongLong(unsigned long long& ull) const;
+	unsigned long long ToULongLong() const;
 
 	operator RedisModuleString *() noexcept;
 	operator const RedisModuleString *() const noexcept;
 
+	static int Compare(String& s1, String& s2) noexcept;
+	friend void swap(String& s1, String& s2) noexcept;
+
 private:
 	RedisModuleString *_str;
 };
-
-int StringCompare(String& s1, String& s2) noexcept;
 
 //---------------------------------------------------------------------------------------------
 
@@ -192,29 +197,27 @@ class IO {
 public:
 	Context GetContext();
 
-	void SaveUnsigned(uint64_t value);
-	uint64_t LoadUnsigned();
+	void Save(uint64_t value);
+	void Load(uint64_t& value);
 
-	void SaveSigned(int64_t value);
-	int64_t LoadSigned();
+	void Save(int64_t value);
+	void Load(int64_t& value);
 	
-	void SaveString(String& s);
-	String LoadString();
+	void Save(String& s);
+	void Load(String& s);
 
-	void SaveStringBuffer(const char *str, size_t len);
-	char *LoadStringBuffer(size_t &len);
+	void Save(const char *str, size_t len);
+	void Load(char **str, size_t& len);
 	
-	void SaveDouble(double value);
-	double LoadDouble();
+	void Save(double value);
+	void Load(double& value);
 	
-	void SaveFloat(float value);
-	float LoadFloat();
+	void Save(float value);
+	void Load(float& vlaue);
 	
 	template<typename... Vargs>
 	void EmitAOF(const char *cmdname, const char *fmt, Vargs... vargs);
 
-	template<typename... Vargs>
-	void LogIOError(const char *levelstr, const char *fmt, Vargs... vargs);
 private:
 	RedisModuleIO *_io;
 };
@@ -224,20 +227,22 @@ private:
 class CallReply {
 public:
 	template<typename... Vargs>
-	CallReply(const char *cmdname, const char *fmt, Vargs... vargs);
+	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
 	CallReply(RedisModuleCallReply *reply);
-	~CallReply();
+	~CallReply() noexcept;
 	const char *StringPtr(size_t &len);
 	String CreateString();
 
 	const char *Proto(size_t &len);
 	int Type();
-	long long Integer();
 	size_t Length();
-	double Double();
+
 	int Bool();
+	long long Integer();
+	double Double();
 	const char *BigNumber(size_t *len);
 	const char *Verbatim(size_t *len, const char **format);
+	
 	CallReply SetElement(size_t idx);
 	int MapElement(size_t idx, CallReply *key, CallReply *val);
 	int AttributeElement(size_t idx, CallReply *key, CallReply *val);
@@ -256,7 +261,7 @@ class User {
 public:
 	User(const char *name);
 	User(String& name);
-	~User();
+	~User() noexcept;
 
 	int SetACL(const char* acl);
 	int ACLCheckCommandPermissions(String *argv, int argc);
@@ -278,15 +283,15 @@ public:
 	class Iter {
 	public:
 		Iter(RedisModuleDictIter *iter);
-		~Iter();
+		~Iter() noexcept;
 
-		int ReseekC(const char *op, void *key, size_t keylen);
+		int Reseek(const char *op, void *key, size_t keylen);
 		int Reseek(const char *op, String& key);
-		void *NextC(size_t *keylen, void **dataptr);
-		void *PrevC(size_t *keylen, void **dataptr);
+		void *Next(size_t *keylen, void **dataptr);
+		void *Prev(size_t *keylen, void **dataptr);
 		String Next(void **dataptr);
 		String Prev(void **dataptr);
-		int CompareC(const char *op, void *key, size_t keylen);
+		int Compare(const char *op, void *key, size_t keylen);
 		int Compare(const char *op, String& key);
 
 		operator RedisModuleDict *();
@@ -295,19 +300,19 @@ public:
 	};
 
 	Dict();
-	~Dict();
+	~Dict() noexcept;
 	
 	uint64_t Size();
 	
-	int SetC(void *key, size_t keylen, void *ptr);
+	int Set(void *key, size_t keylen, void *ptr);
 	int Set(String& key, void *ptr);
-	int ReplaceC(void *key, size_t keylen, void *ptr);
+	int Replace(void *key, size_t keylen, void *ptr);
 	int Replace(String& key, void *ptr);
-	void *GetC(void *key, size_t keylen, int *nokey);
+	void *Get(void *key, size_t keylen, int *nokey);
 	void *Get(String& key, int *nokey);
-	int DelC(void *key, size_t keylen, void *oldval);
+	int Del(void *key, size_t keylen, void *oldval);
 	int Del(String& key, void *oldval);
-	Iter StartC(const char *op, void *key, size_t keylen);
+	Iter Start(const char *op, void *key, size_t keylen);
 	Iter Start(const char *op, String& key);
 	
 	operator RedisModuleDict *();
@@ -349,9 +354,9 @@ char *Strdup(const char *str);
 void *PoolAlloc(Context ctx, size_t bytes);
 
 size_t Size(void *ptr);
+size_t Size(String& str);
+size_t Size(Dict dict);
 size_t UsableSize(void *ptr);
-size_t SizeString(String& str);
-size_t SizeDict(Dict dict);
 } // namespace Alloc
 
 namespace Time {
@@ -363,8 +368,8 @@ ustime_t CachedMicroseconds() noexcept;
 
 namespace EventLoop {
 int Add(int fd, int mask, RedisModuleEventLoopFunc func, void *user_data);
+int Add(RedisModuleEventLoopOneShotFunc func, void *user_data);
 int Del(int fd, int mask);
-int AddOneShot(RedisModuleEventLoopOneShotFunc func, void *user_data);
 } // namespace EventLoop
 
 namespace Command {
@@ -435,6 +440,13 @@ int RegisterEnum(Context ctx, const char *name, int default_val, unsigned int fl
 int Load(Context ctx);
 }
 
+namespace Log {
+template<typename... Vargs>
+void Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept;
+template<typename... Vargs>
+void LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... vargs) noexcept;
+}
+
 namespace DB_KEY { // TODO: better namespace
 void AutoMemory(Context ctx) noexcept;
 
@@ -456,11 +468,8 @@ int PublishMessageShard(Context ctx, String& channel, String& message);
 int SendClusterMessage(Context ctx, const char *target_id, uint8_t type, const char *msg, uint32_t len);
 
 template<typename... Vargs>
-void Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept;
-
-template<typename... Vargs>
 void Replicate(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
-void ReplicateVerbatim(Context ctx) noexcept;
+void Replicate(Context ctx) noexcept;
 
 int IsBlockedReplyRequest(Context ctx);
 int IsBlockedTimeoutRequest(Context ctx);
