@@ -142,6 +142,34 @@ String Command::FilterArgGet(RedisModuleCommandFilterCtx *fctx, int pos) {
 	return RedisModule_CommandFilterArgGet(fctx, pos);
 }
 
+void Info::RegisterFunc(Context ctx, RedisModuleInfoFunc cb) {
+	RedisModule_RegisterInfoFunc(ctx, cb);
+}
+int Info::AddSection(InfoContext ctx, const char *name) {
+	return RedisModule_InfoAddSection(ctx, name);
+}
+int Info::BeginDictField(InfoContext ctx, const char *name) {
+	return RedisModule_InfoBeginDictField(ctx, name);
+}
+int Info::EndDictField(InfoContext ctx) {
+	return RedisModule_InfoEndDictField(ctx);
+}
+int Info::AddField(InfoContext ctx, const char *field, String& value) {
+	return RedisModule_InfoAddFieldString(ctx, field, value);
+}
+int Info::AddField(InfoContext ctx, const char *field, const char *value) {
+	return RedisModule_InfoAddFieldCString(ctx, field, value);
+}
+int Info::AddField(InfoContext ctx, const char *field, double value) {
+	return RedisModule_InfoAddFieldDouble(ctx, field, value);
+}
+int Info::AddField(InfoContext ctx, const char *field, long long value) {
+	return RedisModule_InfoAddFieldLongLong(ctx, field, value);
+}
+int Info::AddField(InfoContext ctx, const char *field, unsigned long long value) {
+	return RedisModule_InfoAddFieldULongLong(ctx, field, value);
+}
+
 template<typename... Vargs>
 void Log::Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept {
 	RedisModule_Log(ctx, level, fmt, vargs...);
@@ -614,6 +642,81 @@ int User::RedactClientCommandArgument(Context ctx, int pos) {
 
 User::operator RedisModuleUser *() noexcept { return _user; }
 
+//---------------------------------------------------------------------------------------------
+
+Dict::Dict() : _dict(RedisModule_CreateDict(NULL)) {}
+Dict::~Dict() noexcept {
+	RedisModule_FreeDict(NULL, _dict);
+}
+
+uint64_t Dict::Size() {
+	return RedisModule_DictSize(_dict);
+}
+
+int Dict::Set(void *key, size_t keylen, void *ptr) {
+	return RedisModule_DictSetC(_dict, key, keylen, ptr);
+}
+int Dict::Set(String& key, void *ptr) {
+	return RedisModule_DictSet(_dict, key, ptr);
+}
+int Dict::Replace(void *key, size_t keylen, void *ptr) {
+	return RedisModule_DictReplaceC(_dict, key, keylen, ptr);
+}
+int Dict::Replace(String& key, void *ptr) {
+	return RedisModule_DictReplace(_dict, key, ptr);
+}
+void *Dict::Get(void *key, size_t keylen, int *nokey) {
+	return RedisModule_DictGetC(_dict, key, keylen, nokey);
+}
+void *Dict::Get(String& key, int *nokey) {
+	return RedisModule_DictGet(_dict, key, nokey);
+}
+int Dict::Del(void *key, size_t keylen, void *oldval) {
+	return RedisModule_DictDelC(_dict, key, keylen, oldval);
+}
+int Dict::Del(String& key, void *oldval) {
+	return RedisModule_DictDel(_dict, key, oldval);
+}
+Iter Dict::Start(const char *op, void *key, size_t keylen) {
+	return RedisModule_DictIteratorStartC(_dict, op, key, keylen);
+}
+Iter Dict::Start(const char *op, String& key) {
+	return RedisModule_DictIteratorStart(_dict, op, key);
+}
+
+Dict::operator RedisModuleDict *() { return _dict; }
+
+Dict::Iter::Iter(RedisModuleDictIter *iter) : _iter(iter) {}
+Dict::Iter::~Iter() noexcept {
+	RedisModule_DictIteratorStop(_iter);
+}
+
+int Dict::Iter::Reseek(const char *op, void *key, size_t keylen) {
+	return RedisModule_DictIteratorReseekC(_iter, op, key, keylen);
+}
+int Dict::Iter::Reseek(const char *op, String& key) {
+	return RedisModule_DictIteratorReseek(_iter, op, key);
+}
+void *Dict::Iter::Next(size_t *keylen, void **dataptr) {
+	return RedisModule_DictNextC(_iter, keylen, dataptr);
+}
+void *Dict::Iter::Prev(size_t *keylen, void **dataptr) {
+	return RedisModule_DictPrevC(_iter, keylen, dataptr);
+}
+String Dict::Iter::Next(void **dataptr) {
+	return RedisModule_DictNext(_iter, dataptr);
+}
+String Dict::Iter::Prev(void **dataptr) {
+	return RedisModule_DictPrev(_iter, dataptr);
+}
+int Dict::Iter::Compare(const char *op, void *key, size_t keylen) {
+	return RedisModule_DictCompareC(_iter, op, key, keylen);
+}
+int Dict::Iter::Compare(const char *op, String& key) {
+	return RedisModule_DictCompare(_iter, op, key);
+}
+
+Dict::Iter::operator RedisModuleDict *() { return _iter; }
 
 //---------------------------------------------------------------------------------------------
 

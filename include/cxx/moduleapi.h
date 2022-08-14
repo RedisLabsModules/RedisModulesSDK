@@ -416,13 +416,22 @@ int CallReply(Context ctx, RedisModule::CallReply reply);
 }
 
 namespace Info {
-int AddSection(Context ctx, const char *name);
-int BeginDictField(Context ctx, const char *name);
-int AddFieldString(Context ctx, const char *field, String& value);
-int AddFieldCString(Context ctx, const char *field, const char *value);
-int AddFieldDouble(Context ctx, const char *field, double value);
-int AddFieldLongLong(Context ctx, const char *field, long long value);
-int AddFieldULongLong(Context ctx, const char *field, unsigned long long value);
+ServerInfoData GetServerInfo(Context ctx, const char *section);
+void FreeServerInfo(Context ctx, ServerInfoData data);
+String ServerInfoGetField(Context ctx, ServerInfoData data, const char* field);
+const char *ServerInfoGetFieldC(ServerInfoData data, const char* field);
+long long ServerInfoGetFieldSigned(ServerInfoData data, const char* field, int *out_err);
+unsigned long long ServerInfoGetFieldUnsigned(ServerInfoData data, const char* field, int *out_err);
+double ServerInfoGetFieldDouble(ServerInfoData data, const char* field, int *out_err);
+void RegisterFunc(Context ctx, RedisModuleInfoFunc cb);
+int AddSection(InfoContext ctx, const char *name);
+int BeginDictField(InfoContext ctx, const char *name);
+int EndDictField(InfoContext ctx);
+int AddField(InfoContext ctx, const char *field, String& value);
+int AddField(InfoContext ctx, const char *field, const char *value);
+int AddField(InfoContext ctx, const char *field, double value);
+int AddField(InfoContext ctx, const char *field, long long value);
+int AddField(InfoContext ctx, const char *field, unsigned long long value);
 }
 
 namespace Config {
