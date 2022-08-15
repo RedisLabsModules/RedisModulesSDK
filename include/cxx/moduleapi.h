@@ -39,6 +39,12 @@ class ThreadSafeContext {
 public:
 	ThreadSafeContext(BlockedClient bc);
 	ThreadSafeContext(Context ctx);
+
+	ThreadSafeContext(const ThreadSafeContext& other) = delete;
+	ThreadSafeContext(ThreadSafeContext&& other) = delete;
+	ThreadSafeContext& operator=(const ThreadSafeContext&) = delete;
+	ThreadSafeContext& operator=(ThreadSafeContext&&) = delete;
+
 	~ThreadSafeContext() noexcept;
 
 	void Lock();
@@ -66,6 +72,7 @@ private:
 
 class String {
 public:
+	// No Context. Used only for AutoMemory. To be deprecated.
     String(const char *ptr, size_t len);
     String(long long ll);
 	String(unsigned long long ull);
@@ -200,6 +207,12 @@ public:
 	template<typename... Vargs>
 	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
 	CallReply(RedisModuleCallReply *reply);
+
+	CallReply(const CallReply&) = delete;
+	CallReply(CallReply&&) = default;
+	CallReply& operator=(const CallReply&) = delete;
+	CallReply& operator=(CallReply&&) = delete;
+
 	~CallReply() noexcept;
 
 	int Type();
@@ -232,6 +245,12 @@ class User {
 public:
 	User(const char *name);
 	User(String& name);
+
+	User(const User&) = delete;
+	User(User&&) = delete;
+	User& operator=(const User&) = delete;
+	User& operator=(User&&) = delete;
+	
 	~User() noexcept;
 
 	int SetACL(const char* acl);
@@ -256,12 +275,19 @@ public:
 	class Iter {
 	public:
 		Iter(RedisModuleDictIter *iter);
+
+		Iter(const Iter&) = delete;
+		Iter(Iter&&) = default;
+		Iter& operator=(const Iter&) = delete;
+		Iter& operator=(Iter&&) = delete;
+
 		~Iter() noexcept;
 
 		int Reseek(const char *op, void *key, size_t keylen);
 		int Reseek(const char *op, String& key);
 		void *Next(size_t *keylen, void **dataptr);
 		void *Prev(size_t *keylen, void **dataptr);
+		// No Context. Used only for String AutoMemory.
 		String Next(void **dataptr);
 		String Prev(void **dataptr);
 		int Compare(const char *op, void *key, size_t keylen);
@@ -273,6 +299,12 @@ public:
 	};
 
 	Dict();
+
+	Dict(const Dict&) = delete;
+	Dict(Dict&&) = delete;
+	Dict& operator=(const Dict&) = delete;
+	Dict& operator=(Dict&&) = delete;
+
 	~Dict() noexcept;
 	
 	uint64_t Size();
@@ -297,13 +329,21 @@ private:
 //---------------------------------------------------------------------------------------------
 
 class ServerInfo {
+	// No Context. Used only for AutoMemory. To be deprecated.
 	ServerInfo(const char *section);
+
+	ServerInfo(const ServerInfo&) = delete;
+	ServerInfo(ServerInfo&&) = delete;
+	ServerInfo& operator=(const ServerInfo&) = delete;
+	ServerInfo& operator=(ServerInfo&&) = delete;
+
 	~ServerInfo();
+
 	void GetField(const char* field, String& str);
 	void GetField(const char* field, const char **str);
-	void GetField(const char* field, long long& ll, int *out_err);
-	void GetField(const char* field, unsigned long long& ull, int *out_err);
-	void GetField(const char* field, double& d, int *out_err);
+	int GetField(const char* field, long long& ll);
+	int GetField(const char* field, unsigned long long& ull);
+	int GetField(const char* field, double& d);
 
 	operator RedisModuleServerInfoData *();
 private:
@@ -446,28 +486,28 @@ int Load(Context ctx);
 //---------------------------------------------------------------------------------------------
 
 namespace RDB {
-	Context GetContext(IO io);
+Context GetContext(IO io);
 
-	void Save(IO io, uint64_t value);
-	void Load(IO io, uint64_t& value);
+void Save(IO io, uint64_t value);
+void Load(IO io, uint64_t& value);
 
-	void Save(IO io, int64_t value);
-	void Load(IO io, int64_t& value);
-	
-	void Save(IO io, String& s);
-	void Load(IO io, String& s);
+void Save(IO io, int64_t value);
+void Load(IO io, int64_t& value);
 
-	void Save(IO io, const char *str, size_t len);
-	void Load(IO io, char **str, size_t& len);
-	
-	void Save(IO io, double value);
-	void Load(IO io, double& value);
-	
-	void Save(IO io, float value);
-	void Load(IO io, float& vlaue);
-	
-	template<typename... Vargs>
-	void EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs);
+void Save(IO io, String& s);
+void Load(IO io, String& s);
+
+void Save(IO io, const char *str, size_t len);
+void Load(IO io, char **str, size_t& len);
+
+void Save(IO io, double value);
+void Load(IO io, double& value);
+
+void Save(IO io, float value);
+void Load(IO io, float& vlaue);
+
+template<typename... Vargs>
+void EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs);
 }
 
 //---------------------------------------------------------------------------------------------

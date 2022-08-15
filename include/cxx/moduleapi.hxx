@@ -581,24 +581,10 @@ CallReply CallReply::SetElement(size_t idx) {
 	return RedisModule_CallReplySetElement(_reply, idx);
 }
 int CallReply::MapElement(size_t idx, CallReply& key, CallReply& val) {
-	// TODO: not be vile
-	// &key doesn't work: cannot convert ‘RM::CallReply*’ to ‘RMCallReply**’
-	// &static_cast<RMCallReply*>(key): lvalue required as unary ‘&’ operand
-	// &key._reply would work, except that breaks encapsulation.
-	RedisModuleCallReply *tempkey = key;
-	RedisModuleCallReply *tempval = val;
-	int res = RedisModule_CallReplyMapElement(_reply, idx, &tempkey, &tempval);
-	key = tempkey;
-	val = tempval;
-	return res;
+	return RedisModule_CallReplyMapElement(_reply, idx, &(key._reply), &(val._reply));
 }
 int CallReply::AttributeElement(size_t idx, CallReply& key, CallReply& val) {
-	RedisModuleCallReply *tempkey = key;
-	RedisModuleCallReply *tempval = val;
-	int res = RedisModule_CallReplyAttributeElement(_reply, idx, &tempkey, &tempval);
-	key = tempkey;
-	val = tempval;
-	return res;
+	return RedisModule_CallReplyAttributeElement(_reply, idx, &(key._reply), &(val._reply));
 }
 CallReply CallReply::Attribute() {
 	return RedisModule_CallReplyAttribute(_reply);
@@ -733,14 +719,20 @@ void ServerInfo::GetField(const char* field, String& str) {
 void ServerInfo::GetField(const char* field, const char **str) {
 	*str = RedisModule_ServerInfoGetFieldC(_info, field);
 }
-void ServerInfo::GetField(const char* field, long long& ll, int *out_err) {
-	ll = RedisModule_ServerInfoGetFieldSigned(_info, field, out_err);
+int ServerInfo::GetField(const char* field, long long& ll) {
+	int out_err;
+	ll = RedisModule_ServerInfoGetFieldSigned(_info, field, &out_err);
+	return out_err;
 }
-void ServerInfo::GetField(const char* field, unsigned long long& ull, int *out_err) {
-	ull = RedisModule_ServerInfoGetFieldUnsigned(_info, field, out_err);
+int ServerInfo::GetField(const char* field, unsigned long long& ull) {
+	int out_err;
+	ull = RedisModule_ServerInfoGetFieldUnsigned(_info, field, &out_err);
+	return out_err;
 }
-void ServerInfo::GetField(const char* field, double& d, int *out_err) {
-	d = RedisModule_ServerInfoGetFieldDouble(_info, field, out_err);
+int ServerInfo::GetField(const char* field, double& d) {
+	int out_err;
+	d = RedisModule_ServerInfoGetFieldDouble(_info, field, &out_err);
+	return out_err;
 }
 ServerInfo::operator RedisModuleServerInfoData *() { return _info; }
 
