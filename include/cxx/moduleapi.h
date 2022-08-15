@@ -14,6 +14,8 @@ namespace RedisModule {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef ::RedisModuleCtx* Context;
+typedef ::RedisModuleInfoCtx* InfoContext;
+typedef ::RedisModuleIO* IO;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -193,37 +195,6 @@ public:
 
 //---------------------------------------------------------------------------------------------
 
-class IO {
-public:
-	Context GetContext();
-
-	void Save(uint64_t value);
-	void Load(uint64_t& value);
-
-	void Save(int64_t value);
-	void Load(int64_t& value);
-	
-	void Save(String& s);
-	void Load(String& s);
-
-	void Save(const char *str, size_t len);
-	void Load(char **str, size_t& len);
-	
-	void Save(double value);
-	void Load(double& value);
-	
-	void Save(float value);
-	void Load(float& vlaue);
-	
-	template<typename... Vargs>
-	void EmitAOF(const char *cmdname, const char *fmt, Vargs... vargs);
-
-private:
-	RedisModuleIO *_io;
-};
-
-//---------------------------------------------------------------------------------------------
-
 class CallReply {
 public:
 	template<typename... Vargs>
@@ -296,7 +267,7 @@ public:
 		int Compare(const char *op, void *key, size_t keylen);
 		int Compare(const char *op, String& key);
 
-		operator RedisModuleDict *();
+		operator RedisModuleDictIter *();
 	private:
 		RedisModuleDictIter *_iter;
 	};
@@ -321,6 +292,22 @@ public:
 
 private:
 	RedisModuleDict *_dict;
+};
+
+//---------------------------------------------------------------------------------------------
+
+class ServerInfo {
+	ServerInfo(const char *section);
+	~ServerInfo();
+	void GetField(const char* field, String& str);
+	void GetField(const char* field, const char **str);
+	void GetField(const char* field, long long& ll, int *out_err);
+	void GetField(const char* field, unsigned long long& ull, int *out_err);
+	void GetField(const char* field, double& d, int *out_err);
+
+	operator RedisModuleServerInfoData *();
+private:
+	RedisModuleServerInfoData *_info;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -361,6 +348,8 @@ size_t Size(Dict dict);
 size_t UsableSize(void *ptr);
 } // namespace Alloc
 
+//---------------------------------------------------------------------------------------------
+
 namespace Time {
 mstime_t Milliseconds() noexcept;
 uint64_t MonotonicMicroseconds() noexcept;
@@ -368,11 +357,15 @@ ustime_t Microseconds() noexcept;
 ustime_t CachedMicroseconds() noexcept;
 } // namespace Time
 
+//---------------------------------------------------------------------------------------------
+
 namespace EventLoop {
 int Add(int fd, int mask, RedisModuleEventLoopFunc func, void *user_data);
 int Add(RedisModuleEventLoopOneShotFunc func, void *user_data);
 int Del(int fd, int mask);
 } // namespace EventLoop
+
+//---------------------------------------------------------------------------------------------
 
 namespace Command {
 int Create(Context ctx, const char *name, RedisModuleCmdFunc cmdfunc,
@@ -384,6 +377,8 @@ int SetInfo(RedisModuleCommand *command, const RedisModuleCommandInfo *info);
 
 String FilterArgGet(RedisModuleCommandFilterCtx *fctx, int pos);
 }
+
+//---------------------------------------------------------------------------------------------
 
 namespace Reply {
 int WrongArity(Context ctx);
@@ -415,14 +410,9 @@ int String(Context ctx, RedisModule::String& str);
 int CallReply(Context ctx, RedisModule::CallReply reply);
 }
 
+//---------------------------------------------------------------------------------------------
+
 namespace Info {
-ServerInfoData GetServerInfo(Context ctx, const char *section);
-void FreeServerInfo(Context ctx, ServerInfoData data);
-String ServerInfoGetField(Context ctx, ServerInfoData data, const char* field);
-const char *ServerInfoGetFieldC(ServerInfoData data, const char* field);
-long long ServerInfoGetFieldSigned(ServerInfoData data, const char* field, int *out_err);
-unsigned long long ServerInfoGetFieldUnsigned(ServerInfoData data, const char* field, int *out_err);
-double ServerInfoGetFieldDouble(ServerInfoData data, const char* field, int *out_err);
 void RegisterFunc(Context ctx, RedisModuleInfoFunc cb);
 int AddSection(InfoContext ctx, const char *name);
 int BeginDictField(InfoContext ctx, const char *name);
@@ -433,6 +423,8 @@ int AddField(InfoContext ctx, const char *field, double value);
 int AddField(InfoContext ctx, const char *field, long long value);
 int AddField(InfoContext ctx, const char *field, unsigned long long value);
 }
+
+//---------------------------------------------------------------------------------------------
 
 namespace Config {
 int RegisterBool(Context ctx, const char *name, int default_val, unsigned int flags,
@@ -451,12 +443,43 @@ int RegisterEnum(Context ctx, const char *name, int default_val, unsigned int fl
 int Load(Context ctx);
 }
 
+//---------------------------------------------------------------------------------------------
+
+namespace RDB {
+	Context GetContext(IO io);
+
+	void Save(IO io, uint64_t value);
+	void Load(IO io, uint64_t& value);
+
+	void Save(IO io, int64_t value);
+	void Load(IO io, int64_t& value);
+	
+	void Save(IO io, String& s);
+	void Load(IO io, String& s);
+
+	void Save(IO io, const char *str, size_t len);
+	void Load(IO io, char **str, size_t& len);
+	
+	void Save(IO io, double value);
+	void Load(IO io, double& value);
+	
+	void Save(IO io, float value);
+	void Load(IO io, float& vlaue);
+	
+	template<typename... Vargs>
+	void EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs);
+}
+
+//---------------------------------------------------------------------------------------------
+
 namespace Log {
 template<typename... Vargs>
 void Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept;
 template<typename... Vargs>
 void LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... vargs) noexcept;
 }
+
+//---------------------------------------------------------------------------------------------
 
 namespace DB_KEY { // TODO: better namespace
 void AutoMemory(Context ctx) noexcept;

@@ -484,56 +484,56 @@ int Hash::Get(int flags, Vargs... vargs) {
 
 //---------------------------------------------------------------------------------------------
 
-Context IO::GetContext() {
-	return Context(RedisModule_GetContextFromIO(_io));
+Context RDB::GetContext(IO io) {
+	return Context(RedisModule_GetContextFromIO(io));
 }
 
-void IO::Save(uint64_t value) {
-	RedisModule_SaveUnsigned(_io, value);
+void RDB::Save(IO io, uint64_t value) {
+	RedisModule_SaveUnsigned(io, value);
 }
-void IO::Load(uint64_t& value) {
-	value = RedisModule_LoadUnsigned(_io);
-}
-
-void IO::Save(int64_t value) {
-	RedisModule_SaveSigned(_io, value);
-}
-void IO::Load(int64_t& value) {
-	value = RedisModule_LoadSigned(_io);
+void RDB::Load(IO io, uint64_t& value) {
+	value = RedisModule_LoadUnsigned(io);
 }
 
-void IO::Save(String& s) {
-	RedisModule_SaveString(_io, s);
+void RDB::Save(IO io, int64_t value) {
+	RedisModule_SaveSigned(io, value);
 }
-void IO::Load(String& s) {
-	String ss(RedisModule_LoadString(_io));
+void RDB::Load(IO io, int64_t& value) {
+	value = RedisModule_LoadSigned(io);
+}
+
+void RDB::Save(IO io, String& s) {
+	RedisModule_SaveString(io, s);
+}
+void RDB::Load(IO io, String& s) {
+	String ss(RedisModule_LoadString(io));
 	swap(s, ss);
 }
 
-void IO::Save(const char *str, size_t len) {
-	RedisModule_SaveStringBuffer(_io, str, len);
+void RDB::Save(IO io, const char *str, size_t len) {
+	RedisModule_SaveStringBuffer(io, str, len);
 }
-void IO::Load(char **str, size_t &len) {
-	*str = RedisModule_LoadStringBuffer(_io, &len);
-}
-
-void IO::Save(double value) {
-	RedisModule_SaveDouble(_io, value);
-}
-void IO::Load(double& d) {
-	d = RedisModule_LoadDouble(_io);
+void RDB::Load(IO io, char **str, size_t &len) {
+	*str = RedisModule_LoadStringBuffer(io, &len);
 }
 
-void IO::Save(float value) {
-	RedisModule_SaveFloat(_io, value);
+void RDB::Save(IO io, double value) {
+	RedisModule_SaveDouble(io, value);
 }
-void IO::Load(float& value) {
-	value = RedisModule_LoadFloat(_io);
+void RDB::Load(IO io, double& d) {
+	d = RedisModule_LoadDouble(io);
+}
+
+void RDB::Save(IO io, float value) {
+	RedisModule_SaveFloat(io, value);
+}
+void RDB::Load(IO io, float& value) {
+	value = RedisModule_LoadFloat(io);
 }
 
 template<typename... Vargs>
-void IO::EmitAOF(const char *cmdname, const char *fmt, Vargs... vargs) {
-	RedisModule_EmitAOF(_io, cmdname, fmt, vargs...);
+void RDB::EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs) {
+	RedisModule_EmitAOF(io, cmdname, fmt, vargs...);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -677,10 +677,10 @@ int Dict::Del(void *key, size_t keylen, void *oldval) {
 int Dict::Del(String& key, void *oldval) {
 	return RedisModule_DictDel(_dict, key, oldval);
 }
-Iter Dict::Start(const char *op, void *key, size_t keylen) {
+Dict::Iter Dict::Start(const char *op, void *key, size_t keylen) {
 	return RedisModule_DictIteratorStartC(_dict, op, key, keylen);
 }
-Iter Dict::Start(const char *op, String& key) {
+Dict::Iter Dict::Start(const char *op, String& key) {
 	return RedisModule_DictIteratorStart(_dict, op, key);
 }
 
@@ -704,10 +704,10 @@ void *Dict::Iter::Prev(size_t *keylen, void **dataptr) {
 	return RedisModule_DictPrevC(_iter, keylen, dataptr);
 }
 String Dict::Iter::Next(void **dataptr) {
-	return RedisModule_DictNext(_iter, dataptr);
+	return RedisModule_DictNext(NULL, _iter, dataptr);
 }
 String Dict::Iter::Prev(void **dataptr) {
-	return RedisModule_DictPrev(_iter, dataptr);
+	return RedisModule_DictPrev(NULL, _iter, dataptr);
 }
 int Dict::Iter::Compare(const char *op, void *key, size_t keylen) {
 	return RedisModule_DictCompareC(_iter, op, key, keylen);
@@ -716,7 +716,33 @@ int Dict::Iter::Compare(const char *op, String& key) {
 	return RedisModule_DictCompare(_iter, op, key);
 }
 
-Dict::Iter::operator RedisModuleDict *() { return _iter; }
+Dict::Iter::operator RedisModuleDictIter *() { return _iter; }
+
+//---------------------------------------------------------------------------------------------
+
+ServerInfo::ServerInfo(const char *section)
+	: _info(RedisModule_GetServerInfo(NULL, section))
+{}
+ServerInfo::~ServerInfo() {
+	RedisModule_FreeServerInfo(NULL, _info);
+}
+void ServerInfo::GetField(const char* field, String& str) {
+	String s(RedisModule_ServerInfoGetField(NULL, _info, field));
+	swap(s, str);
+}
+void ServerInfo::GetField(const char* field, const char **str) {
+	*str = RedisModule_ServerInfoGetFieldC(_info, field);
+}
+void ServerInfo::GetField(const char* field, long long& ll, int *out_err) {
+	ll = RedisModule_ServerInfoGetFieldSigned(_info, field, out_err);
+}
+void ServerInfo::GetField(const char* field, unsigned long long& ull, int *out_err) {
+	ull = RedisModule_ServerInfoGetFieldUnsigned(_info, field, out_err);
+}
+void ServerInfo::GetField(const char* field, double& d, int *out_err) {
+	d = RedisModule_ServerInfoGetFieldDouble(_info, field, out_err);
+}
+ServerInfo::operator RedisModuleServerInfoData *() { return _info; }
 
 //---------------------------------------------------------------------------------------------
 
