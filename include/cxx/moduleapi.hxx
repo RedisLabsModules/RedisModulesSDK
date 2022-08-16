@@ -118,7 +118,7 @@ int Reply::VerbatimStringType(Context ctx, const char *buf, size_t len, const ch
 int Reply::String(Context ctx, RedisModule::String& str) {
 	return RedisModule_ReplyWithString(ctx, str);
 }
-int Reply::CallReply(Context ctx, RedisModule::CallReply reply) {
+int Reply::CallReply(Context ctx, RedisModule::CallReply& reply) {
 	return RedisModule_ReplyWithCallReply(ctx, reply);
 }
 
@@ -179,9 +179,10 @@ void Log::LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... varg
 	RedisModule_LogIOError(io, levelstr, fmt, vargs...);
 }
 
-void DB_KEY::AutoMemory(Context ctx) noexcept {
-	RedisModule_AutoMemory(ctx);
-}
+// No AutoMemory. To be deprecated.
+// void DB_KEY::AutoMemory(Context ctx) noexcept {
+// 	RedisModule_AutoMemory(ctx);
+// }
 
 bool DB_KEY::IsKeysPositionRequest(Context ctx) noexcept {
 	return RedisModule_IsKeysPositionRequest(ctx);
@@ -218,18 +219,27 @@ BlockedClient::BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, Red
 	void (*free_privdata)(RedisModuleCtx *, void*), long long timeout_ms)
 	: _bc(RedisModule_BlockClient(ctx, reply_callback, timeout_callback, free_privdata, timeout_ms))
 { }
-int BlockedClient::UnblockClient(void *privdata) {
-	return RedisModule_UnblockClient(_bc, privdata);
+BlockedClient::~BlockedClient() noexcept {
+	try { AbortBlock(); }
+	catch (...) { } // you had your chance to catch it yourself
 }
-int BlockedClient::AbortBlock() {
-	return RedisModule_AbortBlock(_bc);
+
+void BlockedClient::UnblockClient(void *privdata) {
+	if (RedisModule_UnblockClient(_bc, privdata) != REDISMODULE_OK) {
+		throw REDISMODULE_ERR;
+	}
+}
+void BlockedClient::AbortBlock() {
+	if (RedisModule_AbortBlock(_bc) != REDISMODULE_OK) {
+		throw REDISMODULE_ERR;
+	}
 }
 
 BlockedClient::operator RedisModuleBlockedClient *() { return _bc; }
 
 //---------------------------------------------------------------------------------------------
 
-ThreadSafeContext::ThreadSafeContext(BlockedClient bc) 
+ThreadSafeContext::ThreadSafeContext(BlockedClient& bc) 
 	: _ctx(RedisModule_GetThreadSafeContext(bc))
 { }
 ThreadSafeContext::ThreadSafeContext(Context ctx) 
@@ -239,13 +249,13 @@ ThreadSafeContext::~ThreadSafeContext() {
 	RedisModule_FreeThreadSafeContext(_ctx);
 }
 
-void ThreadSafeContext::Lock() {
+void ThreadSafeContext::Lock() noexcept {
 	RedisModule_ThreadSafeContextLock(_ctx);
 }
-int ThreadSafeContext::TryLock() {
+int ThreadSafeContext::TryLock() noexcept {
 	return RedisModule_ThreadSafeContextTryLock(_ctx);
 }
-void ThreadSafeContext::Unlock() {
+void ThreadSafeContext::Unlock() noexcept {
 	RedisModule_ThreadSafeContextUnlock(_ctx);
 }
 
@@ -264,14 +274,21 @@ RMType::operator const RedisModuleType *() const noexcept { return _type; }
 String::String(const char *ptr, size_t len)
 	: _str(RedisModule_CreateString(NULL, ptr, len))
 { }
-
 String::String(long long ll)
 	: _str(RedisModule_CreateStringFromLongLong(NULL, ll))
 { }
-
 String::String(const RedisModuleString *str)
 	: _str(RedisModule_CreateStringFromString(NULL, str))
 { }
+String::String(const String& other)
+	: String(other._str)
+{ Retain(); }
+String::String(String&& other) : _str(std::move(other._str))
+{ }
+String& String::operator=(String other) {
+	swap(*this, other);
+	return *this;
+}
 
 void String::Retain() {
 	RedisModule_RetainString(NULL, _str);
@@ -293,7 +310,7 @@ const char *String::PtrLen(size_t &len) const noexcept {
 	return RedisModule_StringPtrLen(_str, &len);
 }
 
-int String::ToLongLong(long long& ll) const {
+int String::ToLongLong(long long& ll) const noexcept {
 	return RedisModule_StringToLongLong(_str, &ll);
 }
 long long String::ToLongLong() const {
@@ -303,7 +320,7 @@ long long String::ToLongLong() const {
 	}
 	return ll;
 }
-int String::ToDouble(double& d) const {
+int String::ToDouble(double& d) const noexcept {
 	return RedisModule_StringToDouble(_str, &d);
 }
 double String::ToDouble() const {
@@ -313,7 +330,7 @@ double String::ToDouble() const {
 	}
 	return d;
 }
-int String::ToLongDouble(long double& ld) const {
+int String::ToLongDouble(long double& ld) const noexcept {
 	return RedisModule_StringToLongDouble(_str, &ld);
 }
 long double String::ToLongDouble() const {
@@ -323,7 +340,7 @@ long double String::ToLongDouble() const {
 	}
 	return ld;
 }
-int String::ToULongLong(unsigned long long& ull) const {
+int String::ToULongLong(unsigned long long& ull) const noexcept {
 	return RedisModule_StringToULongLong(_str, &ull);
 }
 unsigned long long String::ToULongLong() const {
@@ -337,7 +354,7 @@ unsigned long long String::ToULongLong() const {
 String::operator RedisModuleString *() noexcept { return _str; }
 String::operator const RedisModuleString *() const noexcept { return _str; }
 
-int String::Compare(String& s1, String& s2) noexcept {
+int String::Compare(const String& s1, const String& s2) noexcept {
 	return RedisModule_StringCompare(s1, s2);
 }
 
@@ -347,7 +364,7 @@ void swap(String& s1, String& s2) noexcept {
 
 //---------------------------------------------------------------------------------------------
 
-Key::Key(Context ctx, String& keyname, int mode) // OpenKey
+Key::Key(Context ctx, String keyname, int mode) // OpenKey
 	: _key((RedisModuleKey *)RedisModule_OpenKey(ctx, keyname, mode))
 { }
 Key::Key(RedisModuleKey *key) : _key(key) { }
@@ -388,8 +405,6 @@ Key::operator const RedisModuleKey *() const noexcept { return _key; }
 
 //---------------------------------------------------------------------------------------------
 
-StringKey::StringKey(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
-
 int StringKey::Set(String& str) {
 	return RedisModule_StringSet(_key, str);
 }
@@ -401,8 +416,6 @@ int StringKey::Truncate(size_t newlen) {
 }
 
 //---------------------------------------------------------------------------------------------
-
-List::List(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
 int List::Push(int where, String& ele) {
 	return RedisModule_ListPush(_key, where, ele);
@@ -424,8 +437,6 @@ int List::Delete(long index) {
 }
 
 //---------------------------------------------------------------------------------------------
-
-Zset::Zset(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
 
 int Zset::Add(double score, String& ele, int *flagsptr) {
 	return RedisModule_ZsetAdd(_key, score, ele, flagsptr);
@@ -470,8 +481,6 @@ int Zset::RangePrev() {
 
 //---------------------------------------------------------------------------------------------
 
-Hash::Hash(Context ctx, String& keyname, int mode) : Key(ctx, keyname, mode) {}
-
 template<typename... Vargs>
 int Hash::Set(int flags, Vargs... vargs) {
 	return RedisModule_HashSet(_key, flags, vargs...);
@@ -506,8 +515,7 @@ void RDB::Save(IO io, String& s) {
 	RedisModule_SaveString(io, s);
 }
 void RDB::Load(IO io, String& s) {
-	String ss(RedisModule_LoadString(io));
-	swap(s, ss);
+	s = RedisModule_LoadString(io);
 }
 
 void RDB::Save(IO io, const char *str, size_t len) {
@@ -606,8 +614,8 @@ User::~User() noexcept {
 int User::SetACL(const char* acl) {
 	return RedisModule_SetModuleUserACL(_user, acl);
 }
-int User::ACLCheckCommandPermissions(String *argv, int argc) {
-	return RedisModule_ACLCheckCommandPermissions(_user, argv, argc);
+int User::ACLCheckCommandPermissions(Args& args) {
+	return RedisModule_ACLCheckCommandPermissions(_user, args, args.Size());
 }
 int User::ACLCheckKeyPermissions(String& key, int flags) {
 	return RedisModule_ACLCheckKeyPermissions(_user, key, flags);
@@ -713,8 +721,7 @@ ServerInfo::~ServerInfo() {
 	RedisModule_FreeServerInfo(NULL, _info);
 }
 void ServerInfo::GetField(const char* field, String& str) {
-	String s(RedisModule_ServerInfoGetField(NULL, _info, field));
-	swap(s, str);
+	str = RedisModule_ServerInfoGetField(NULL, _info, field);
 }
 void ServerInfo::GetField(const char* field, const char **str) {
 	*str = RedisModule_ServerInfoGetFieldC(_info, field);
@@ -739,25 +746,33 @@ ServerInfo::operator RedisModuleServerInfoData *() { return _info; }
 //---------------------------------------------------------------------------------------------
 
 Args::Args(int argc, RedisModuleString **argv)
-	: _args(std::vector<String>())
-{
-	_args.reserve(argc);
-	RedisModuleString *arg = NULL;
-	while ((arg = *argv++) != NULL) {
-		_args.emplace_back(arg);
-	}
+	: _argc(argc), _argv(argv)
+{}
+
+int Args::Size() {
+	return _argc;
+}
+Args::operator RedisModuleString **() {
+	return _argv;
+}
+
+String Args::operator[](int idx) {
+	return _argv[idx];
 }
 
 //---------------------------------------------------------------------------------------------
 
 template <class T>
-CmdFunctor<T>::CmdFunctor() {}
+Cmd<T>::Cmd(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
+
 template <class T>
-int CmdFunctor<T>::Run(const Args &args) { return REDISMODULE_OK; }
-template <class T>
-int CmdFunctor<T>::cmdfunc(Context ctx, Args& args) {
-	T cmd{ctx};
-	return cmd.Run(args);
+int Cmd<T>::cmdfunc(Context ctx, RedisModuleString **argv, int argc) {
+	try {
+		T cmd(ctx, Args(argc, argv));
+		return cmd();
+	} catch(...) {
+		return REDISMODULE_ERR;
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -8,16 +8,79 @@ namespace RedisModule {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-// this is under key digest API, maybe irrelevant as other digest fns are
-// void * (*LoadDataTypeFromStringEncver)(const RedisModuleString *str, const RedisModuleType *mt, int encver);
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 typedef ::RedisModuleCtx* Context;
 typedef ::RedisModuleInfoCtx* InfoContext;
 typedef ::RedisModuleIO* IO;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+
+class String {
+public:
+	// No Context. Used only for AutoMemory. To be deprecated.
+    String(const char *ptr, size_t len);
+    String(long long ll);
+	String(unsigned long long ull);
+    String(const RedisModuleString *str);
+
+	String(const String& other);
+	String(String&& other);
+	String& operator=(String other);
+
+    ~String() noexcept;
+
+	void Retain();
+
+	const char *PtrLen(size_t &len) const noexcept;
+    void AppendBuffer(const char *buf, size_t len);
+	void Trim() noexcept;
+
+	int ToLongLong(long long& ll) const noexcept;
+	long long ToLongLong() const;
+	int ToDouble(double& d) const noexcept;
+	double ToDouble() const;
+    int ToLongDouble(long double& ld) const noexcept;
+    long double ToLongDouble() const;
+	int ToULongLong(unsigned long long& ull) const noexcept;
+	unsigned long long ToULongLong() const;
+
+	operator RedisModuleString *() noexcept;
+	operator const RedisModuleString *() const noexcept;
+
+	static int Compare(const String& s1, const String& s2) noexcept;
+	friend void swap(String& s1, String& s2) noexcept;
+
+private:
+	RedisModuleString *_str;
+};
+
+//---------------------------------------------------------------------------------------------
+
+class Args {
+public:
+	Args(int argc, RedisModuleString **argv);
+	int Size();
+	operator RedisModuleString **();
+
+	String operator[](int idx);
+
+private:
+	int _argc;
+	RedisModuleString **_argv;
+};
+
+//---------------------------------------------------------------------------------------------
+
+template <class T>
+struct Cmd {
+	Context _ctx;
+	Args _args;
+
+	Cmd(Context ctx, const Args& args);
+
+	virtual int operator()() = 0;
+	
+	static int cmdfunc(Context ctx, RedisModuleString **argv, int argc);
+};
 
 //---------------------------------------------------------------------------------------------
 
@@ -25,8 +88,16 @@ class BlockedClient {
 public:
 	BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
 		void (*free_privdata)(RedisModuleCtx *, void *), long long timeout_ms);
-	int UnblockClient(void *privdata);
-	int AbortBlock();
+	
+	BlockedClient(const BlockedClient& other) = delete;
+	BlockedClient(BlockedClient&& other) = delete;
+	BlockedClient& operator=(const BlockedClient&) = delete;
+	BlockedClient& operator=(BlockedClient&&) = delete;
+
+	~BlockedClient() noexcept;
+
+	void UnblockClient(void *privdata);
+	void AbortBlock();
 
 	operator RedisModuleBlockedClient *();
 private:
@@ -37,7 +108,7 @@ private:
 
 class ThreadSafeContext {
 public:
-	ThreadSafeContext(BlockedClient bc);
+	ThreadSafeContext(BlockedClient& bc);
 	ThreadSafeContext(Context ctx);
 
 	ThreadSafeContext(const ThreadSafeContext& other) = delete;
@@ -47,9 +118,9 @@ public:
 
 	~ThreadSafeContext() noexcept;
 
-	void Lock();
-	int TryLock();
-	void Unlock();
+	void Lock() noexcept;
+	int TryLock() noexcept;
+	void Unlock() noexcept;
 private:
 	Context _ctx;
 };
@@ -70,50 +141,9 @@ private:
 
 //---------------------------------------------------------------------------------------------
 
-class String {
-public:
-	// No Context. Used only for AutoMemory. To be deprecated.
-    String(const char *ptr, size_t len);
-    String(long long ll);
-	String(unsigned long long ull);
-    String(const RedisModuleString *str);
-
-	String(const String& other) = delete;
-	String(String&& other) = default;
-	String& operator=(const String&) = delete;
-	String& operator=(String&&) = delete;
-    ~String() noexcept;
-
-	void Retain();
-
-	const char *PtrLen(size_t &len) const noexcept;
-    void AppendBuffer(const char *buf, size_t len);
-	void Trim() noexcept;
-
-	int ToLongLong(long long& ll) const;
-	long long ToLongLong() const;
-	int ToDouble(double& d) const;
-	double ToDouble() const;
-    int ToLongDouble(long double& ld) const;
-    long double ToLongDouble() const;
-	int ToULongLong(unsigned long long& ull) const;
-	unsigned long long ToULongLong() const;
-
-	operator RedisModuleString *() noexcept;
-	operator const RedisModuleString *() const noexcept;
-
-	static int Compare(String& s1, String& s2) noexcept;
-	friend void swap(String& s1, String& s2) noexcept;
-
-private:
-	RedisModuleString *_str;
-};
-
-//---------------------------------------------------------------------------------------------
-
 class Key {
 public:
-	Key(Context ctx, String& keyname, int mode);
+	Key(Context ctx, String keyname, int mode);
 	Key(RedisModuleKey *key);
 
 	Key(const Key&) = delete;
@@ -145,8 +175,8 @@ protected:
 //---------------------------------------------------------------------------------------------
 
 class StringKey : Key {
-	StringKey(Context ctx, String& keyname, int mode);
-
+	using Key::Key;
+public:
 	int Set(String& str);
 	char *DMA(size_t &len, int mode); // direct memory access
 	int Truncate(size_t newlen);
@@ -155,8 +185,8 @@ class StringKey : Key {
 //---------------------------------------------------------------------------------------------
 
 struct List : Key {
-	List(Context ctx, String& keyname, int mode);
-
+	using Key::Key;
+public:
 	int Push(int where, String& ele);
 	String Pop(int where);
 
@@ -169,9 +199,8 @@ struct List : Key {
 //---------------------------------------------------------------------------------------------
 
 class Zset : Key {
+	using Key::Key;
 public:
-	Zset(Context ctx, String& keyname, int mode);
-
 	int Add(double score, String& ele, int *flagsptr);
 	int Incrby(double score, String& ele, int *flagsptr, double *newscore);
 	int Rem(String& ele, int *deleted);
@@ -191,9 +220,8 @@ public:
 //---------------------------------------------------------------------------------------------
 
 class Hash : Key {
+	using Key::Key;
 public:
-	Hash(Context ctx, String& keyname, int mode);
-
 	template<typename... Vargs>
 	int Set(int flags, Vargs... vargs);
 	template<typename... Vargs>
@@ -254,7 +282,7 @@ public:
 	~User() noexcept;
 
 	int SetACL(const char* acl);
-	int ACLCheckCommandPermissions(String *argv, int argc);
+	int ACLCheckCommandPermissions(Args& args);
 	int ACLCheckKeyPermissions(String& key, int flags);
 	int ACLCheckChannelPermissions(String& ch, int flags);
 	void ACLAddLogEntry(Context ctx, String& object, RedisModuleACLLogEntryReason reason);
@@ -298,6 +326,7 @@ public:
 		RedisModuleDictIter *_iter;
 	};
 
+	// No Context. Used only for AutoMemory. To be deprecated.
 	Dict();
 
 	Dict(const Dict&) = delete;
@@ -348,27 +377,6 @@ class ServerInfo {
 	operator RedisModuleServerInfoData *();
 private:
 	RedisModuleServerInfoData *_info;
-};
-
-//---------------------------------------------------------------------------------------------
-
-class Args {
-public:
-	Args(int argc, RedisModuleString **argv);
-
-private:
-	std::vector<String> _args;
-};
-
-//---------------------------------------------------------------------------------------------
-
-template <class T>
-struct CmdFunctor {
-	CmdFunctor();
-
-	virtual int Run(const Args& args);
-	
-	static int cmdfunc(Context ctx, Args& args);
 };
 
 //---------------------------------------------------------------------------------------------
@@ -447,7 +455,7 @@ int StringBuffer(Context ctx, const char *buf, size_t len);
 int VerbatimStringType(Context ctx, const char *buf, size_t len, const char *ext);
 int String(Context ctx, RedisModule::String& str);
 
-int CallReply(Context ctx, RedisModule::CallReply reply);
+int CallReply(Context ctx, RedisModule::CallReply& reply);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -522,7 +530,8 @@ void LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... vargs) no
 //---------------------------------------------------------------------------------------------
 
 namespace DB_KEY { // TODO: better namespace
-void AutoMemory(Context ctx) noexcept;
+// No AutoMemory. To be deprecated.
+// void AutoMemory(Context ctx) noexcept;
 
 bool IsKeysPositionRequest(Context ctx) noexcept;
 void KeyAtPos(Context ctx, int pos) noexcept;

@@ -4,7 +4,7 @@
 CC  := g++
 CXX := $(CC)
 CPPFLAGS := -I../
-CXXFLAGS := -Wpedantic -Wall -Wextra -Werror -fPIC -g
+CXXFLAGS := -std=c++20 -Wpedantic -Wall -Wextra -Werror -fPIC -g
 LDFLAGS := -shared -Wl,-rpath='$$ORIGIN' -L. -g
 
 SRCS := $(wildcard *.cpp)
