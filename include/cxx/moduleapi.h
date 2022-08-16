@@ -61,7 +61,7 @@ public:
 	int Size();
 	operator RedisModuleString **();
 
-	String operator[](int idx);
+	RedisModuleString * operator[](int idx);
 
 private:
 	int _argc;

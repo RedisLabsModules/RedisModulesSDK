@@ -756,7 +756,7 @@ Args::operator RedisModuleString **() {
 	return _argv;
 }
 
-String Args::operator[](int idx) {
+RedisModuleString * Args::operator[](int idx) {
 	return _argv[idx];
 }
 
