@@ -31,13 +31,14 @@ using namespace RedisModule;
 	)                                               \
   )
 
-#define Test(f) \
-  if (argc < 2 || RMUtil_ArgExists(__STRING(f), argv, argc, 1)) { \
-    int rc = f(ctx);                                              \
-	if (rc != REDISMODULE_OK) {                                   \
-      Reply::Error(ctx, "Test " __STRING(f) " FAILED");           \
-      return REDISMODULE_ERR;                                     \
-    }                                                             \
+#define TEST(f) \
+  if (_args.Size() < 2 ||                                     \
+  	  RMUtil_ArgExists(__STRING(f), _args, _args.Size(), 1)) { \
+    int rc = f(_ctx);                                         \
+	if (rc != REDISMODULE_OK) {                               \
+      Reply::Error(_ctx, "Test " __STRING(f) " FAILED");       \
+      return REDISMODULE_ERR;                                 \
+    }                                                         \
   }
        
 struct Parse : Cmd<Parse> {
@@ -144,16 +145,20 @@ int testHgetSet(Context ctx) {
 	return REDISMODULE_OK;
 }
 
-// Unit test entry point for the module
-int TestModule(Context ctx, RedisModuleString **argv, int argc) {
-	// RedisModule_AutoMemory(ctx);
+struct TestModule : Cmd<TestModule> {
+	using Cmd::Cmd;
 
-	Test(testParse);
-	Test(testHgetSet);
+	// Unit test entry point for the module
+	int operator()() {
+		// RedisModule_AutoMemory(ctx);
 
-	Reply::SimpleString(ctx, "PASS");
-	return REDISMODULE_OK;
-}
+		TEST(testParse);
+		TEST(testHgetSet);
+
+		Reply::SimpleString(_ctx, "PASS");
+		return REDISMODULE_OK;
+	}
+};
 
 int RedisModule_OnLoad(Context ctx) {
 	// Register the module itself
@@ -162,15 +167,15 @@ int RedisModule_OnLoad(Context ctx) {
 	}
 
 	// register example.parse - the default registration syntax
-	if (Command::Create(ctx, "example.parse", Parse::cmdfunc, "readonly", 1, 1, 1) == REDISMODULE_ERR) {
+	if (Command::Create(ctx, "example.parse", Cmd<Parse>::cmdfunc, "readonly", 1, 1, 1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
 	}
 
 	// register example.hgetset - using the shortened utility registration macro
-	RMUtil_RegisterWriteCmd(ctx, "example.hgetset", HGetSet::cmdfunc);
+	RMUtil_RegisterWriteCmd(ctx, "example.hgetset", Cmd<HGetSet>::cmdfunc);
 
 	// register the unit test
-	RMUtil_RegisterWriteCmd(ctx, "example.test", TestModule);
+	RMUtil_RegisterWriteCmd(ctx, "example.test", Cmd<TestModule>::cmdfunc);
 
 	return REDISMODULE_OK;
 }
