@@ -19,6 +19,10 @@
 #include <stdlib.h>
 #include <redismodule.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 char *rmalloc_strndup(const char *s, size_t n);
 
 #ifdef REDIS_MODULE_TARGET /* Set this when compiling your code as a module */
@@ -47,5 +51,9 @@ char *rmalloc_strndup(const char *s, size_t n);
  * outside of redis, usually for unit tests. Call it once when entering your unit
  * tests' main() */
 void RMUTil_InitAlloc();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __RMUTIL_ALLOC__ */

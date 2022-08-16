@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdarg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 * Generic resizable vector that can be used if you just want to store stuff
 * temporarily.
@@ -69,5 +73,9 @@ int Vector_Cap(Vector *v);
 void Vector_Free(Vector *v);
 
 int __vecotr_PutPtr(Vector *v, size_t pos, void *elem);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

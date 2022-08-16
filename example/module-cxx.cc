@@ -1,7 +1,7 @@
 
 #define REDISMODULE_MAIN
 #define REDISMODULE_EXPERIMENTAL_API
-#include "cxx/moduleapi.h"
+#include "cxx/moduleapi.hxx"
 
 #include "rmutil/util.h"
 #include "rmutil/strings.h"
@@ -25,20 +25,20 @@ using namespace RedisModule;
 
 #define AssertReplyEquals(rep, cstr)                \
   RMUtil_Assert(                                    \
-	String::Compare(                                \
+	RMUtil_StringEquals(                            \
 	  rep.CreateString(),                           \
 	  String(cstr, strlen(cstr))                    \
 	)                                               \
   )
 
-#define TEST(f) \
-  if (_args.Size() < 2 ||                                     \
-  	  RMUtil_ArgExists(__STRING(f), _args, _args.Size(), 1)) { \
-    int rc = f(_ctx);                                         \
-	if (rc != REDISMODULE_OK) {                               \
-      Reply::Error(_ctx, "Test " __STRING(f) " FAILED");       \
-      return REDISMODULE_ERR;                                 \
-    }                                                         \
+#define TEST(f)                                        \
+  if (argc < 2 ||                                      \
+  	  RMUtil_ArgExists(__STRING(f), argv, argc, 1)) {  \
+    int rc = f(ctx);                                   \
+	if (rc != REDISMODULE_OK) {                        \
+      Reply::Error(ctx, "Test " __STRING(f) " FAILED");\
+      return REDISMODULE_ERR;                          \
+    }                                                  \
   }
        
 struct Parse : Cmd<Parse> {
@@ -145,22 +145,19 @@ int testHgetSet(Context ctx) {
 	return REDISMODULE_OK;
 }
 
-struct TestModule : Cmd<TestModule> {
-	using Cmd::Cmd;
+// Unit test entry point for the module
+int TestModule(Context ctx, RedisModuleString **argv, int argc) {
+	// RedisModule_AutoMemory(ctx);
 
-	// Unit test entry point for the module
-	int operator()() {
-		// RedisModule_AutoMemory(ctx);
+	TEST(testParse);
+	TEST(testHgetSet);
 
-		TEST(testParse);
-		TEST(testHgetSet);
+	Reply::SimpleString(ctx, "PASS");
+	return REDISMODULE_OK;
+}
 
-		Reply::SimpleString(_ctx, "PASS");
-		return REDISMODULE_OK;
-	}
-};
-
-int RedisModule_OnLoad(Context ctx) {
+extern "C" {
+int RedisModule_OnLoad(Context ctx, RedisModuleString **argv, int argc) {
 	// Register the module itself
 	if (RedisModule_Init(ctx, "example", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
@@ -175,9 +172,9 @@ int RedisModule_OnLoad(Context ctx) {
 	RMUtil_RegisterWriteCmd(ctx, "example.hgetset", Cmd<HGetSet>::cmdfunc);
 
 	// register the unit test
-	RMUtil_RegisterWriteCmd(ctx, "example.test", Cmd<TestModule>::cmdfunc);
+	RMUtil_RegisterWriteCmd(ctx, "example.test", TestModule);
 
 	return REDISMODULE_OK;
 }
-
+}
 // REDIS_MODULE(MyModule);

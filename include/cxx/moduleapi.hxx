@@ -355,6 +355,10 @@ String::operator RedisModuleString *() noexcept { return _str; }
 String::operator const RedisModuleString *() const noexcept { return _str; }
 
 int String::Compare(const String& s1, const String& s2) noexcept {
+	size_t _;
+	const char *cstr1 = s1.PtrLen(_);
+	const char *cstr2 = s2.PtrLen(_);
+	printf("compare(\"%s\", \"%s\")\n", cstr1, cstr2);
 	return RedisModule_StringCompare(s1, s2);
 }
 
@@ -768,7 +772,8 @@ Cmd<T>::Cmd(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
 template <class T>
 int Cmd<T>::cmdfunc(Context ctx, RedisModuleString **argv, int argc) {
 	try {
-		T cmd(ctx, Args(argc, argv));
+		Args args(argc, argv);
+		T cmd(ctx, args);
 		return cmd();
 	} catch(...) {
 		return REDISMODULE_ERR;
