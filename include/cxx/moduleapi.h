@@ -19,8 +19,7 @@ concept Unwrapable = requires(T t) {
 	t.Unwrap();
 };
 
-template <Unwrapable T>
-auto Unwrap(T t) -> decltype(std::declval<T&>().Unwrap()) {
+auto Unwrap(Unwrapable auto t) -> decltype(t.Unwrap()) {
 	return t.Unwrap();
 }
 
