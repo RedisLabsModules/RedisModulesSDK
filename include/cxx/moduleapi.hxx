@@ -172,11 +172,11 @@ int Info::AddField(InfoContext ctx, const char *field, unsigned long long value)
 
 template<typename... Vargs>
 void Log::Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept {
-	RedisModule_Log(ctx, level, fmt, vargs...);
+	RedisModule_Log(ctx, level, fmt, RedisModule::Unwrap(vargs)...);
 }
 template<typename... Vargs>
 void Log::LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... vargs) noexcept {
-	RedisModule_LogIOError(io, levelstr, fmt, vargs...);
+	RedisModule_LogIOError(io, levelstr, fmt, RedisModule::Unwrap(vargs)...);
 }
 
 // No AutoMemory. To be deprecated.
@@ -205,7 +205,7 @@ unsigned long long DB_KEY::GetClientId(Context ctx) noexcept {
 
 template<typename... Vargs>
 void DB_KEY::Replicate(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs) {
-	if (RedisModule_Replicate(ctx, cmdname, fmt, vargs...) != REDISMODULE_OK) {
+	if (RedisModule_Replicate(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
 }
@@ -495,12 +495,12 @@ int Zset::RangePrev() {
 
 template<typename... Vargs>
 int Hash::Set(int flags, Vargs... vargs) {
-	return RedisModule_HashSet(_key, flags, vargs...);
+	return RedisModule_HashSet(_key, flags, RedisModule::Unwrap(vargs)...);
 }
 
 template<typename... Vargs>
 int Hash::Get(int flags, Vargs... vargs) {
-	return RedisModule_HashGet(_key, flags, vargs...);
+	return RedisModule_HashGet(_key, flags, RedisModule::Unwrap(vargs)...);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -553,7 +553,7 @@ void RDB::Load(IO io, float& value) {
 
 template<typename... Vargs>
 void RDB::EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs) {
-	RedisModule_EmitAOF(io, cmdname, fmt, vargs...);
+	RedisModule_EmitAOF(io, cmdname, fmt, RedisModule::Unwrap(vargs)...);
 }
 
 //---------------------------------------------------------------------------------------------
