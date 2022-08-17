@@ -14,6 +14,23 @@ typedef ::RedisModuleIO* IO;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
+template <typename T>
+concept Unwrapable = requires(T t) {
+	t.Unwrap();
+};
+
+template <Unwrapable T>
+auto Unwrap(T t) -> decltype(std::declval<T&>().Unwrap()) {
+	return t.Unwrap();
+}
+
+template <class T>
+T Unwrap(T t) {
+	return t;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 class String {
 public:
 	// No Context. Used only for AutoMemory. To be deprecated.
@@ -25,6 +42,7 @@ public:
 	String(const String& other);
 	String(String&& other);
 	String& operator=(String other);
+
 
     ~String() noexcept;
 
@@ -43,6 +61,7 @@ public:
 	int ToULongLong(unsigned long long& ull) const noexcept;
 	unsigned long long ToULongLong() const;
 
+	RedisModuleString *Unwrap() noexcept;
 	operator RedisModuleString *() noexcept;
 	operator const RedisModuleString *() const noexcept;
 
@@ -61,7 +80,7 @@ public:
 	int Size();
 	operator RedisModuleString **();
 
-	RedisModuleString * operator[](int idx);
+	String operator[](int idx);
 
 private:
 	int _argc;
@@ -99,6 +118,7 @@ public:
 	void UnblockClient(void *privdata);
 	void AbortBlock();
 
+	RedisModuleBlockedClient *Unwrap() noexcept;
 	operator RedisModuleBlockedClient *();
 private:
 	RedisModuleBlockedClient *_bc;
@@ -132,9 +152,9 @@ public:
 	RMType(Context ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods);
 	RMType(RedisModuleType *type);
 
+	RedisModuleType *Unwrap() noexcept;
 	operator RedisModuleType *() noexcept;
 	operator const RedisModuleType *() const noexcept;
-
 private:
 	RedisModuleType *_type;
 };
@@ -165,9 +185,9 @@ public:
 	void *GetValue() noexcept;
 	int SetValue(RMType mt, void *value);
 
+	RedisModuleKey *Unwrap() noexcept;
 	operator RedisModuleKey *() noexcept;
 	operator const RedisModuleKey *() const noexcept;
-
 protected:
     RedisModuleKey *_key;
 };
@@ -262,6 +282,7 @@ public:
 
 	const char *Protocol(size_t& len);
 
+	RedisModuleCallReply *Unwrap() noexcept;
 	operator RedisModuleCallReply *() noexcept;
 private:
 	RedisModuleCallReply *_reply;
@@ -290,8 +311,8 @@ public:
 	static String GetCurrentUserName(Context ctx);
 	static int RedactClientCommandArgument(Context ctx, int pos);
 
+	RedisModuleUser *Unwrap() noexcept;
 	operator RedisModuleUser *() noexcept;
-
 private:
 	RedisModuleUser *_user;
 };
@@ -321,6 +342,7 @@ public:
 		int Compare(const char *op, void *key, size_t keylen);
 		int Compare(const char *op, String& key);
 
+		RedisModuleDictIter *Unwrap() noexcept;
 		operator RedisModuleDictIter *();
 	private:
 		RedisModuleDictIter *_iter;
@@ -349,8 +371,8 @@ public:
 	Iter Start(const char *op, void *key, size_t keylen);
 	Iter Start(const char *op, String& key);
 	
+	RedisModuleDict *Unwrap() noexcept;
 	operator RedisModuleDict *();
-
 private:
 	RedisModuleDict *_dict;
 };
@@ -374,6 +396,7 @@ class ServerInfo {
 	int GetField(const char* field, unsigned long long& ull);
 	int GetField(const char* field, double& d);
 
+	RedisModuleServerInfoData *Unwrap() noexcept;
 	operator RedisModuleServerInfoData *();
 private:
 	RedisModuleServerInfoData *_info;

@@ -235,6 +235,9 @@ void BlockedClient::AbortBlock() {
 	}
 }
 
+RedisModuleBlockedClient *BlockedClient::Unwrap() noexcept {
+	return _bc;
+}
 BlockedClient::operator RedisModuleBlockedClient *() { return _bc; }
 
 //---------------------------------------------------------------------------------------------
@@ -266,6 +269,9 @@ RMType::RMType(Context ctx, const char *name, int encver, RedisModuleTypeMethods
 { }
 RMType::RMType(RedisModuleType *type) : _type(type) {}
 
+RedisModuleType *RMType::Unwrap() noexcept {
+	return _type;
+}
 RMType::operator RedisModuleType *() noexcept { return _type; }
 RMType::operator const RedisModuleType *() const noexcept { return _type; }
 
@@ -280,9 +286,9 @@ String::String(long long ll)
 String::String(const RedisModuleString *str)
 	: _str(RedisModule_CreateStringFromString(NULL, str))
 { }
-String::String(const String& other)
-	: String(other._str)
-{ Retain(); }
+String::String(const String& other) : String(other._str) {
+	Retain();
+}
 String::String(String&& other) : _str(std::move(other._str))
 { }
 String& String::operator=(String other) {
@@ -351,6 +357,9 @@ unsigned long long String::ToULongLong() const {
 	return ull;
 }
 
+RedisModuleString *String::Unwrap() noexcept {
+	return _str;
+}
 String::operator RedisModuleString *() noexcept { return _str; }
 String::operator const RedisModuleString *() const noexcept { return _str; }
 
@@ -400,6 +409,9 @@ int Key::SetValue(RMType mt, void *value) {
 	return RedisModule_ModuleTypeSetValue(_key, mt, value);
 }
 
+RedisModuleKey *Key::Unwrap() noexcept {
+	return _key;
+}
 Key::operator RedisModuleKey *() noexcept { return _key; }
 Key::operator const RedisModuleKey *() const noexcept { return _key; }
 
@@ -548,7 +560,7 @@ void RDB::EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs) {
 
 template<typename... Vargs>
 CallReply::CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs) 
-	: _reply(RedisModule_Call(ctx, cmdname, fmt, vargs...))
+	: _reply(RedisModule_Call(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...))
 { }
 CallReply::CallReply(RedisModuleCallReply *reply) : _reply(reply) {}
 CallReply::~CallReply() noexcept {
@@ -601,6 +613,10 @@ CallReply CallReply::Attribute() {
 const char *CallReply::Protocol(size_t &len) {
 	return RedisModule_CallReplyProto(_reply, &len);
 }
+
+RedisModuleCallReply *CallReply::Unwrap() noexcept {
+	return _reply;
+}
 CallReply::operator RedisModuleCallReply *() noexcept { return _reply; }
 
 //---------------------------------------------------------------------------------------------
@@ -634,6 +650,9 @@ int User::RedactClientCommandArgument(Context ctx, int pos) {
 	return RedisModule_RedactClientCommandArgument(ctx, pos);
 }
 
+RedisModuleUser *User::Unwrap() noexcept {
+	return _user;
+}
 User::operator RedisModuleUser *() noexcept { return _user; }
 
 //---------------------------------------------------------------------------------------------
@@ -678,6 +697,9 @@ Dict::Iter Dict::Start(const char *op, String& key) {
 	return RedisModule_DictIteratorStart(_dict, op, key);
 }
 
+RedisModuleDict *Dict::Unwrap() noexcept {
+	return _dict;
+}
 Dict::operator RedisModuleDict *() { return _dict; }
 
 Dict::Iter::Iter(RedisModuleDictIter *iter) : _iter(iter) {}
@@ -710,7 +732,11 @@ int Dict::Iter::Compare(const char *op, String& key) {
 	return RedisModule_DictCompare(_iter, op, key);
 }
 
+RedisModuleDictIter *Dict::Iter::Unwrap() noexcept {
+	return _iter;
+}
 Dict::Iter::operator RedisModuleDictIter *() { return _iter; }
+
 
 //---------------------------------------------------------------------------------------------
 
@@ -741,6 +767,10 @@ int ServerInfo::GetField(const char* field, double& d) {
 	d = RedisModule_ServerInfoGetFieldDouble(_info, field, &out_err);
 	return out_err;
 }
+
+RedisModuleServerInfoData *ServerInfo::Unwrap() noexcept {
+	return _info;
+}
 ServerInfo::operator RedisModuleServerInfoData *() { return _info; }
 
 //---------------------------------------------------------------------------------------------
@@ -756,7 +786,7 @@ Args::operator RedisModuleString **() {
 	return _argv;
 }
 
-RedisModuleString * Args::operator[](int idx) {
+String Args::operator[](int idx) {
 	return _argv[idx];
 }
 

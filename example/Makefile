@@ -16,7 +16,7 @@ endif
 GCC_FLAGS = -I.. -I../include -Wall -g -fPIC -lc -lm -std=gnu99
 GCC=gcc
 
-GXX_FLAGS = -I.. -I../include -Wall -g -fPIC -lc -lm
+GXX_FLAGS = -I.. -I../include -Wall -g -fPIC -lc -lm -std=c++20
 GXX=g++
 
 all: rmutil module.so module-cxx.so
