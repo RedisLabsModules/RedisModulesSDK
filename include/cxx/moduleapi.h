@@ -36,7 +36,7 @@ public:
     String(const char *ptr, size_t len);
     String(long long ll);
 	String(unsigned long long ull);
-    String(const RedisModuleString *str);
+    String(RedisModuleString *str);
 
 	String(const String& other);
 	String(String&& other);

@@ -283,9 +283,10 @@ String::String(const char *ptr, size_t len)
 String::String(long long ll)
 	: _str(RedisModule_CreateStringFromLongLong(NULL, ll))
 { }
-String::String(const RedisModuleString *str)
-	: _str(RedisModule_CreateStringFromString(NULL, str))
-{ }
+String::String(RedisModuleString *str) : _str(str)
+{
+	Retain();
+}
 String::String(const String& other) : String(other._str) {
 	Retain();
 }
