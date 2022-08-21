@@ -217,49 +217,45 @@ void DB_KEY::Replicate(Context ctx) noexcept {
 
 BlockedClient::BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
 	void (*free_privdata)(RedisModuleCtx *, void*), long long timeout_ms)
-	: _bc(RedisModule_BlockClient(ctx, reply_callback, timeout_callback, free_privdata, timeout_ms))
+	: _bc(RedisModule_BlockClient(ctx, reply_callback, timeout_callback, free_privdata, timeout_ms), &Deleter)
 { }
-BlockedClient::~BlockedClient() noexcept {
-	try { AbortBlock(); }
-	catch (...) { } // you had your chance to catch it yourself
+void BlockedClient::Deleter(RedisModuleBlockedClient *bc) noexcept {
+	RedisModule_AbortBlock(bc); // you had your chance to catch errors yourself
 }
 
 void BlockedClient::UnblockClient(void *privdata) {
-	if (RedisModule_UnblockClient(_bc, privdata) != REDISMODULE_OK) {
+	if (RedisModule_UnblockClient(_bc.get(), privdata) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
 }
 void BlockedClient::AbortBlock() {
-	if (RedisModule_AbortBlock(_bc) != REDISMODULE_OK) {
+	if (RedisModule_AbortBlock(_bc.get()) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
 }
 
 RedisModuleBlockedClient *BlockedClient::Unwrap() noexcept {
-	return _bc;
+	return _bc.get();
 }
-BlockedClient::operator RedisModuleBlockedClient *() { return _bc; }
+BlockedClient::operator RedisModuleBlockedClient *() { return _bc.get(); }
 
 //---------------------------------------------------------------------------------------------
 
 ThreadSafeContext::ThreadSafeContext(BlockedClient& bc) 
-	: _ctx(RedisModule_GetThreadSafeContext(bc))
+	: _ctx(RedisModule_GetThreadSafeContext(bc), RedisModule_FreeThreadSafeContext)
 { }
 ThreadSafeContext::ThreadSafeContext(Context ctx) 
-	: _ctx(RedisModule_GetDetachedThreadSafeContext(ctx))
+	: _ctx(RedisModule_GetDetachedThreadSafeContext(ctx), RedisModule_FreeThreadSafeContext)
 { }
-ThreadSafeContext::~ThreadSafeContext() {
-	RedisModule_FreeThreadSafeContext(_ctx);
-}
 
 void ThreadSafeContext::Lock() noexcept {
-	RedisModule_ThreadSafeContextLock(_ctx);
+	RedisModule_ThreadSafeContextLock(_ctx.get());
 }
 int ThreadSafeContext::TryLock() noexcept {
-	return RedisModule_ThreadSafeContextTryLock(_ctx);
+	return RedisModule_ThreadSafeContextTryLock(_ctx.get());
 }
 void ThreadSafeContext::Unlock() noexcept {
-	RedisModule_ThreadSafeContextUnlock(_ctx);
+	RedisModule_ThreadSafeContextUnlock(_ctx.get());
 }
 
 //---------------------------------------------------------------------------------------------
@@ -287,22 +283,28 @@ String::String(RedisModuleString *str) : _str(str)
 {
 	Retain();
 }
-String::String(const String& other) : String(other._str) {
+String::String(const String& other) : _str(other._str) {
 	Retain();
 }
-String::String(String&& other) : _str(std::move(other._str))
-{ }
-String& String::operator=(String other) {
-	swap(*this, other);
-	return *this;
-}
-
 void String::Retain() {
 	RedisModule_RetainString(NULL, _str);
 }
-
+String::String(String&& other) : _str(std::exchange(other._str, nullptr))
+{ }
+String& String::operator=(String other) {
+	swap(other);
+	return *this;
+}
+void String::swap(String& other) noexcept {
+	using std::swap;
+	swap(_str, other._str);
+}
+void swap(String& s1, String& s2) noexcept {
+	s1.swap(s2);
+}
 String::~String() noexcept {
-	RedisModule_FreeString(NULL, _str);
+	if (_str != nullptr)
+		RedisModule_FreeString(NULL, _str);
 }
 
 void String::AppendBuffer(const char *buf, size_t len) {
@@ -368,140 +370,133 @@ int String::Compare(const String& s1, const String& s2) noexcept {
 	return RedisModule_StringCompare(s1, s2);
 }
 
-void swap(String& s1, String& s2) noexcept {
-	std::swap(s1._str, s2._str);
-}
-
 //---------------------------------------------------------------------------------------------
 
 Key::Key(Context ctx, String keyname, int mode) // OpenKey
-	: _key((RedisModuleKey *)RedisModule_OpenKey(ctx, keyname, mode))
+	: _key(RedisModule_OpenKey(ctx, keyname, mode), RedisModule_CloseKey)
 { }
-Key::Key(RedisModuleKey *key) : _key(key) { }
+Key::Key(RedisModuleKey *key) : _key(key, RedisModule_CloseKey) { }
 
-Key::~Key() noexcept { // CloseKey
-	RedisModule_CloseKey(_key);
-}
 int Key::DeleteKey() {
-	return RedisModule_DeleteKey(_key);
+	return RedisModule_DeleteKey(_key.get());
 }
 
 mstime_t Key::GetExpire() noexcept {
-	return RedisModule_GetExpire(_key);
+	return RedisModule_GetExpire(_key.get());
 }
 int Key::SetExpire(mstime_t expire){
-	return RedisModule_SetExpire(_key, expire);
+	return RedisModule_SetExpire(_key.get(), expire);
 }	
 
 int Key::Type() noexcept {
-	return RedisModule_KeyType(_key);
+	return RedisModule_KeyType(_key.get());
 }
 RMType Key::GetType() noexcept {
-	return RedisModule_ModuleTypeGetType(_key);
+	return RedisModule_ModuleTypeGetType(_key.get());
 }
 
 size_t Key::ValueLength() noexcept {
-	return RedisModule_ValueLength(_key);
+	return RedisModule_ValueLength(_key.get());
 }
 void *Key::GetValue() noexcept {
-	return RedisModule_ModuleTypeGetValue(_key);
+	return RedisModule_ModuleTypeGetValue(_key.get());
 }
 int Key::SetValue(RMType mt, void *value) {
-	return RedisModule_ModuleTypeSetValue(_key, mt, value);
+	return RedisModule_ModuleTypeSetValue(_key.get(), mt, value);
 }
 
 RedisModuleKey *Key::Unwrap() noexcept {
-	return _key;
+	return _key.get();
 }
-Key::operator RedisModuleKey *() noexcept { return _key; }
-Key::operator const RedisModuleKey *() const noexcept { return _key; }
+Key::operator RedisModuleKey *() noexcept { return _key.get(); }
+Key::operator const RedisModuleKey *() const noexcept { return _key.get(); }
 
 //---------------------------------------------------------------------------------------------
 
 int StringKey::Set(String& str) {
-	return RedisModule_StringSet(_key, str);
+	return RedisModule_StringSet(_key.get(), str);
 }
 char *StringKey::DMA(size_t &len, int mode) {
-	return RedisModule_StringDMA(_key, &len, mode);
+	return RedisModule_StringDMA(_key.get(), &len, mode);
 }
 int StringKey::Truncate(size_t newlen) {
-	return RedisModule_StringTruncate(_key, newlen);
+	return RedisModule_StringTruncate(_key.get(), newlen);
 }
 
 //---------------------------------------------------------------------------------------------
 
 int List::Push(int where, String& ele) {
-	return RedisModule_ListPush(_key, where, ele);
+	return RedisModule_ListPush(_key.get(), where, ele);
 }
 String List::Pop(int where) {
-	return RedisModule_ListPop(_key, where);
+	return RedisModule_ListPop(_key.get(), where);
 }
 String List::Get(long index) {
-	return RedisModule_ListGet(_key, index);
+	return RedisModule_ListGet(_key.get(), index);
 }
 int List::Set(long index, String& value) {
-	return RedisModule_ListSet(_key, index, value);
+	return RedisModule_ListSet(_key.get(), index, value);
 }
 int List::Insert(long index, String& value) {
-	return RedisModule_ListInsert(_key, index, value);
+	return RedisModule_ListInsert(_key.get(), index, value);
 }
 int List::Delete(long index) {
-	return RedisModule_ListDelete(_key, index);
+	return RedisModule_ListDelete(_key.get(), index);
 }
 
 //---------------------------------------------------------------------------------------------
 
 int Zset::Add(double score, String& ele, int *flagsptr) {
-	return RedisModule_ZsetAdd(_key, score, ele, flagsptr);
+	return RedisModule_ZsetAdd(_key.get(), score, ele, flagsptr);
 }
 int Zset::Incrby(double score, String& ele, int *flagsptr, double *newscore) {
-	return RedisModule_ZsetIncrby(_key, score, ele, flagsptr, newscore);
+	return RedisModule_ZsetIncrby(_key.get(), score, ele, flagsptr, newscore);
 }
 int Zset::Rem(String& ele, int *deleted) {
-	return RedisModule_ZsetRem(_key, ele, deleted);
+	return RedisModule_ZsetRem(_key.get(), ele, deleted);
 }
 int Zset::Score(String& ele, double *score) {
-	return RedisModule_ZsetScore(_key, ele, score);
+	return RedisModule_ZsetScore(_key.get(), ele, score);
 }
 
 void Zset::RangeStop() {
-	RedisModule_ZsetRangeStop(_key);
+	RedisModule_ZsetRangeStop(_key.get());
 }
 int Zset::RangeEndReached(){
-	return RedisModule_ZsetRangeEndReached(_key);
+	return RedisModule_ZsetRangeEndReached(_key.get());
 }
 int Zset::FirstInScoreRange(double min, double max, int minex, int maxex) {
-	return RedisModule_ZsetFirstInScoreRange(_key, min, max, minex, maxex);
+	return RedisModule_ZsetFirstInScoreRange(_key.get(), min, max, minex, maxex);
 }
 int Zset::LastInScoreRange(double min, double max, int minex, int maxex) {
-	return RedisModule_ZsetLastInScoreRange(_key, min, max, minex, maxex);
+	return RedisModule_ZsetLastInScoreRange(_key.get(), min, max, minex, maxex);
 }
 int Zset::FirstInLexRange(String& min, String& max) {
-	return RedisModule_ZsetFirstInLexRange(_key, min, max);
+	return RedisModule_ZsetFirstInLexRange(_key.get(), min, max);
 }
 int Zset::LastInLexRange(String& min, String& max) {
-	return RedisModule_ZsetLastInLexRange(_key, min, max);
+	return RedisModule_ZsetLastInLexRange(_key.get(), min, max);
 }
 String Zset::RangeCurrentElement(double *score) {
-	return RedisModule_ZsetRangeCurrentElement(_key, score);
+	return RedisModule_ZsetRangeCurrentElement(_key.get(), score);
 }
 int Zset::RangeNext() {
-	return RedisModule_ZsetRangeNext(_key);
+	return RedisModule_ZsetRangeNext(_key.get());
 }
 int Zset::RangePrev() {
-	return RedisModule_ZsetRangePrev(_key);
+	return RedisModule_ZsetRangePrev(_key.get());
 }
 
 //---------------------------------------------------------------------------------------------
 
 template<typename... Vargs>
 int Hash::Set(int flags, Vargs... vargs) {
-	return RedisModule_HashSet(_key, flags, RedisModule::Unwrap(vargs)...);
+	return RedisModule_HashSet(_key.get(), flags, RedisModule::Unwrap(vargs)...);
 }
 
 template<typename... Vargs>
 int Hash::Get(int flags, Vargs... vargs) {
-	return RedisModule_HashGet(_key, flags, RedisModule::Unwrap(vargs)...);
+	return RedisModule_HashGet(_key.get(), flags, RedisModule::Unwrap(vargs)...);
 }
 
 //---------------------------------------------------------------------------------------------
@@ -561,87 +556,95 @@ void RDB::EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs) {
 
 template<typename... Vargs>
 CallReply::CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs) 
-	: _reply(RedisModule_Call(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...))
+	: _reply(RedisModule_Call(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...), RedisModule_FreeCallReply)
 { }
-CallReply::CallReply(RedisModuleCallReply *reply) : _reply(reply) {}
-CallReply::~CallReply() noexcept {
-	RedisModule_FreeCallReply(_reply);
-}
+CallReply::CallReply(RedisModuleCallReply *reply)
+	: _reply(reply, RedisModule_FreeCallReply) {}
+
 int CallReply::Type() {
-	return RedisModule_CallReplyType(_reply);
+	return RedisModule_CallReplyType(_reply.get());
 }
 size_t CallReply::Length() {
-	return RedisModule_CallReplyLength(_reply);
+	return RedisModule_CallReplyLength(_reply.get());
 }
 long long CallReply::Integer() noexcept {
-	return RedisModule_CallReplyInteger(_reply);
+	return RedisModule_CallReplyInteger(_reply.get());
 }
 double CallReply::Double() noexcept {
-	return RedisModule_CallReplyDouble(_reply);
+	return RedisModule_CallReplyDouble(_reply.get());
 }
 const char *CallReply::BigNumber(size_t& len) {
-	return RedisModule_CallReplyBigNumber(_reply, &len);
+	return RedisModule_CallReplyBigNumber(_reply.get(), &len);
 }
 const char *CallReply::Verbatim(size_t& len, const char **format) {
-	return RedisModule_CallReplyVerbatim(_reply, &len, format);
+	return RedisModule_CallReplyVerbatim(_reply.get(), &len, format);
 }
 bool CallReply::Bool() noexcept {
-	return RedisModule_CallReplyBool(_reply);
+	return RedisModule_CallReplyBool(_reply.get());
 }
 const char *CallReply::StringPtr(size_t &len) {
-	return RedisModule_CallReplyStringPtr(_reply, &len);
+	return RedisModule_CallReplyStringPtr(_reply.get(), &len);
 }
 String CallReply::CreateString() {
-	return RedisModule_CreateStringFromCallReply(_reply);
+	return RedisModule_CreateStringFromCallReply(_reply.get());
 }
 
 CallReply CallReply::ArrayElement(size_t idx) {
-	return RedisModule_CallReplyArrayElement(_reply, idx);
+	return RedisModule_CallReplyArrayElement(_reply.get(), idx);
 }
 CallReply CallReply::SetElement(size_t idx) {
-	return RedisModule_CallReplySetElement(_reply, idx);
-}
-int CallReply::MapElement(size_t idx, CallReply& key, CallReply& val) {
-	return RedisModule_CallReplyMapElement(_reply, idx, &(key._reply), &(val._reply));
-}
-int CallReply::AttributeElement(size_t idx, CallReply& key, CallReply& val) {
-	return RedisModule_CallReplyAttributeElement(_reply, idx, &(key._reply), &(val._reply));
+	return RedisModule_CallReplySetElement(_reply.get(), idx);
 }
 CallReply CallReply::Attribute() {
-	return RedisModule_CallReplyAttribute(_reply);
+	return RedisModule_CallReplyAttribute(_reply.get());
 }
 
 const char *CallReply::Protocol(size_t &len) {
-	return RedisModule_CallReplyProto(_reply, &len);
+	return RedisModule_CallReplyProto(_reply.get(), &len);
+}
+std::pair<CallReply, CallReply> CallReply::MapElement(size_t idx) {
+	RedisModuleCallReply *key, *val;
+	if (RedisModule_CallReplyMapElement(_reply.get(), idx, &key, &val) != REDISMODULE_OK) {
+		throw REDISMODULE_ERR;
+	}
+	return std::make_pair(key, val);
+}
+std::pair<CallReply, CallReply> CallReply::AttributeElement(size_t idx) {
+	RedisModuleCallReply *key, *val;
+	if (RedisModule_CallReplyAttributeElement(_reply.get(), idx, &key, &val) != REDISMODULE_OK) {
+		throw REDISMODULE_ERR;
+	}
+	return std::make_pair(key, val);
 }
 
+
 RedisModuleCallReply *CallReply::Unwrap() noexcept {
-	return _reply;
+	return _reply.get();
 }
-CallReply::operator RedisModuleCallReply *() noexcept { return _reply; }
+CallReply::operator RedisModuleCallReply *() noexcept { return _reply.get(); }
 
 //---------------------------------------------------------------------------------------------
 
-User::User(const char *name) : _user(RedisModule_CreateModuleUser(name)) {}
-User::User(String& name) : _user(RedisModule_GetModuleUserFromUserName(name)) {}
-User::~User() noexcept {
-	RedisModule_FreeModuleUser(_user);
-}
+User::User(const char *name)
+	: _user(RedisModule_CreateModuleUser(name), RedisModule_FreeModuleUser) {}
+User::User(String& name)
+	: _user(RedisModule_GetModuleUserFromUserName(name), RedisModule_FreeModuleUser) {}
+
 
 int User::SetACL(const char* acl) {
-	return RedisModule_SetModuleUserACL(_user, acl);
+	return RedisModule_SetModuleUserACL(_user.get(), acl);
 }
 int User::ACLCheckCommandPermissions(Args& args) {
-	return RedisModule_ACLCheckCommandPermissions(_user, args, args.Size());
+	return RedisModule_ACLCheckCommandPermissions(_user.get(), args, args.Size());
 }
 int User::ACLCheckKeyPermissions(String& key, int flags) {
-	return RedisModule_ACLCheckKeyPermissions(_user, key, flags);
+	return RedisModule_ACLCheckKeyPermissions(_user.get(), key, flags);
 }
 int User::ACLCheckChannelPermissions(String& ch, int flags) {
-	return RedisModule_ACLCheckChannelPermissions(_user, ch, flags);
+	return RedisModule_ACLCheckChannelPermissions(_user.get(), ch, flags);
 }
 void User::ACLAddLogEntry(Context ctx, String& object, RedisModuleACLLogEntryReason reason) {
-	return RedisModule_ACLAddLogEntry(ctx, _user, object, reason);
+	return RedisModule_ACLAddLogEntry(ctx, _user.get(), object, reason);
 }
 
 String User::GetCurrentUserName(Context ctx) {
@@ -652,127 +655,126 @@ int User::RedactClientCommandArgument(Context ctx, int pos) {
 }
 
 RedisModuleUser *User::Unwrap() noexcept {
-	return _user;
+	return _user.get();
 }
-User::operator RedisModuleUser *() noexcept { return _user; }
+User::operator RedisModuleUser *() noexcept { return _user.get(); }
 
 //---------------------------------------------------------------------------------------------
 
-Dict::Dict() : _dict(RedisModule_CreateDict(NULL)) {}
-Dict::~Dict() noexcept {
-	RedisModule_FreeDict(NULL, _dict);
+Dict::Dict() : _dict(RedisModule_CreateDict(NULL), Deleter) {}
+void Dict::Deleter(RedisModuleDict *dict) noexcept {
+	RedisModule_FreeDict(NULL, dict);
 }
 
 uint64_t Dict::Size() {
-	return RedisModule_DictSize(_dict);
+	return RedisModule_DictSize(_dict.get());
 }
 
 int Dict::Set(void *key, size_t keylen, void *ptr) {
-	return RedisModule_DictSetC(_dict, key, keylen, ptr);
+	return RedisModule_DictSetC(_dict.get(), key, keylen, ptr);
 }
 int Dict::Set(String& key, void *ptr) {
-	return RedisModule_DictSet(_dict, key, ptr);
+	return RedisModule_DictSet(_dict.get(), key, ptr);
 }
 int Dict::Replace(void *key, size_t keylen, void *ptr) {
-	return RedisModule_DictReplaceC(_dict, key, keylen, ptr);
+	return RedisModule_DictReplaceC(_dict.get(), key, keylen, ptr);
 }
 int Dict::Replace(String& key, void *ptr) {
-	return RedisModule_DictReplace(_dict, key, ptr);
+	return RedisModule_DictReplace(_dict.get(), key, ptr);
 }
 void *Dict::Get(void *key, size_t keylen, int *nokey) {
-	return RedisModule_DictGetC(_dict, key, keylen, nokey);
+	return RedisModule_DictGetC(_dict.get(), key, keylen, nokey);
 }
 void *Dict::Get(String& key, int *nokey) {
-	return RedisModule_DictGet(_dict, key, nokey);
+	return RedisModule_DictGet(_dict.get(), key, nokey);
 }
 int Dict::Del(void *key, size_t keylen, void *oldval) {
-	return RedisModule_DictDelC(_dict, key, keylen, oldval);
+	return RedisModule_DictDelC(_dict.get(), key, keylen, oldval);
 }
 int Dict::Del(String& key, void *oldval) {
-	return RedisModule_DictDel(_dict, key, oldval);
+	return RedisModule_DictDel(_dict.get(), key, oldval);
 }
 Dict::Iter Dict::Start(const char *op, void *key, size_t keylen) {
-	return RedisModule_DictIteratorStartC(_dict, op, key, keylen);
+	return RedisModule_DictIteratorStartC(_dict.get(), op, key, keylen);
 }
 Dict::Iter Dict::Start(const char *op, String& key) {
-	return RedisModule_DictIteratorStart(_dict, op, key);
+	return RedisModule_DictIteratorStart(_dict.get(), op, key);
 }
 
 RedisModuleDict *Dict::Unwrap() noexcept {
-	return _dict;
+	return _dict.get();
 }
-Dict::operator RedisModuleDict *() { return _dict; }
+Dict::operator RedisModuleDict *() { return _dict.get(); }
 
-Dict::Iter::Iter(RedisModuleDictIter *iter) : _iter(iter) {}
-Dict::Iter::~Iter() noexcept {
-	RedisModule_DictIteratorStop(_iter);
-}
+Dict::Iter::Iter(RedisModuleDictIter *iter)
+	: _iter(iter, RedisModule_DictIteratorStop)
+{}
 
 int Dict::Iter::Reseek(const char *op, void *key, size_t keylen) {
-	return RedisModule_DictIteratorReseekC(_iter, op, key, keylen);
+	return RedisModule_DictIteratorReseekC(_iter.get(), op, key, keylen);
 }
 int Dict::Iter::Reseek(const char *op, String& key) {
-	return RedisModule_DictIteratorReseek(_iter, op, key);
+	return RedisModule_DictIteratorReseek(_iter.get(), op, key);
 }
 void *Dict::Iter::Next(size_t *keylen, void **dataptr) {
-	return RedisModule_DictNextC(_iter, keylen, dataptr);
+	return RedisModule_DictNextC(_iter.get(), keylen, dataptr);
 }
 void *Dict::Iter::Prev(size_t *keylen, void **dataptr) {
-	return RedisModule_DictPrevC(_iter, keylen, dataptr);
+	return RedisModule_DictPrevC(_iter.get(), keylen, dataptr);
 }
 String Dict::Iter::Next(void **dataptr) {
-	return RedisModule_DictNext(NULL, _iter, dataptr);
+	return RedisModule_DictNext(NULL, _iter.get(), dataptr);
 }
 String Dict::Iter::Prev(void **dataptr) {
-	return RedisModule_DictPrev(NULL, _iter, dataptr);
+	return RedisModule_DictPrev(NULL, _iter.get(), dataptr);
 }
 int Dict::Iter::Compare(const char *op, void *key, size_t keylen) {
-	return RedisModule_DictCompareC(_iter, op, key, keylen);
+	return RedisModule_DictCompareC(_iter.get(), op, key, keylen);
 }
 int Dict::Iter::Compare(const char *op, String& key) {
-	return RedisModule_DictCompare(_iter, op, key);
+	return RedisModule_DictCompare(_iter.get(), op, key);
 }
 
 RedisModuleDictIter *Dict::Iter::Unwrap() noexcept {
-	return _iter;
+	return _iter.get();
 }
-Dict::Iter::operator RedisModuleDictIter *() { return _iter; }
+Dict::Iter::operator RedisModuleDictIter *() { return _iter.get(); }
 
 
 //---------------------------------------------------------------------------------------------
 
 ServerInfo::ServerInfo(const char *section)
-	: _info(RedisModule_GetServerInfo(NULL, section))
+	: _info(RedisModule_GetServerInfo(NULL, section), &Deleter)
 {}
-ServerInfo::~ServerInfo() {
-	RedisModule_FreeServerInfo(NULL, _info);
+void ServerInfo::Deleter(RedisModuleServerInfoData *info) noexcept {
+	RedisModule_FreeServerInfo(NULL, info);
 }
 void ServerInfo::GetField(const char* field, String& str) {
-	str = RedisModule_ServerInfoGetField(NULL, _info, field);
+	str = RedisModule_ServerInfoGetField(NULL, _info.get(), field);
 }
 void ServerInfo::GetField(const char* field, const char **str) {
-	*str = RedisModule_ServerInfoGetFieldC(_info, field);
+	*str = RedisModule_ServerInfoGetFieldC(_info.get(), field);
 }
 int ServerInfo::GetField(const char* field, long long& ll) {
 	int out_err;
-	ll = RedisModule_ServerInfoGetFieldSigned(_info, field, &out_err);
+	ll = RedisModule_ServerInfoGetFieldSigned(_info.get(), field, &out_err);
 	return out_err;
 }
 int ServerInfo::GetField(const char* field, unsigned long long& ull) {
 	int out_err;
-	ull = RedisModule_ServerInfoGetFieldUnsigned(_info, field, &out_err);
+	ull = RedisModule_ServerInfoGetFieldUnsigned(_info.get(), field, &out_err);
 	return out_err;
 }
 int ServerInfo::GetField(const char* field, double& d) {
 	int out_err;
-	d = RedisModule_ServerInfoGetFieldDouble(_info, field, &out_err);
+	d = RedisModule_ServerInfoGetFieldDouble(_info.get(), field, &out_err);
 	return out_err;
 }
 
 RedisModuleServerInfoData *ServerInfo::Unwrap() noexcept {
-	return _info;
+	return _info.get();
 }
-ServerInfo::operator RedisModuleServerInfoData *() { return _info; }
+ServerInfo::operator RedisModuleServerInfoData *() { return _info.get(); }
 
 //---------------------------------------------------------------------------------------------
 

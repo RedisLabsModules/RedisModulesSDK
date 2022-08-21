@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include <memory> // std::unique_ptr
+#include <functional> // std::bind
 #include "redismodule.h"
 
 
@@ -37,15 +38,13 @@ public:
     String(long long ll);
 	String(unsigned long long ull);
     String(RedisModuleString *str);
-
 	String(const String& other);
+	void Retain();
 	String(String&& other);
 	String& operator=(String other);
-
-
+	void swap(String& other) noexcept;
+	friend void swap(String& s1, String& s2) noexcept;
     ~String() noexcept;
-
-	void Retain();
 
 	const char *PtrLen(size_t &len) const noexcept;
     void AppendBuffer(const char *buf, size_t len);
@@ -65,7 +64,6 @@ public:
 	operator const RedisModuleString *() const noexcept;
 
 	static int Compare(const String& s1, const String& s2) noexcept;
-	friend void swap(String& s1, String& s2) noexcept;
 
 private:
 	RedisModuleString *_str;
@@ -105,14 +103,8 @@ struct Cmd {
 class BlockedClient {
 public:
 	BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
-		void (*free_privdata)(RedisModuleCtx *, void *), long long timeout_ms);
-	
-	BlockedClient(const BlockedClient& other) = delete;
-	BlockedClient(BlockedClient&& other) = delete;
-	BlockedClient& operator=(const BlockedClient&) = delete;
-	BlockedClient& operator=(BlockedClient&&) = delete;
-
-	~BlockedClient() noexcept;
+		void (*free_privdata)(Context, void *), long long timeout_ms);
+	static void Deleter(RedisModuleBlockedClient *) noexcept;
 
 	void UnblockClient(void *privdata);
 	void AbortBlock();
@@ -120,7 +112,7 @@ public:
 	RedisModuleBlockedClient *Unwrap() noexcept;
 	operator RedisModuleBlockedClient *();
 private:
-	RedisModuleBlockedClient *_bc;
+	std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)> _bc;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -130,18 +122,11 @@ public:
 	ThreadSafeContext(BlockedClient& bc);
 	ThreadSafeContext(Context ctx);
 
-	ThreadSafeContext(const ThreadSafeContext& other) = delete;
-	ThreadSafeContext(ThreadSafeContext&& other) = delete;
-	ThreadSafeContext& operator=(const ThreadSafeContext&) = delete;
-	ThreadSafeContext& operator=(ThreadSafeContext&&) = delete;
-
-	~ThreadSafeContext() noexcept;
-
 	void Lock() noexcept;
 	int TryLock() noexcept;
 	void Unlock() noexcept;
 private:
-	Context _ctx;
+	std::unique_ptr<RedisModuleCtx, decltype(RedisModule_FreeThreadSafeContext)> _ctx;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -164,13 +149,6 @@ class Key {
 public:
 	Key(Context ctx, String keyname, int mode);
 	Key(RedisModuleKey *key);
-
-	Key(const Key&) = delete;
-	Key(Key&&) = delete;
-	Key& operator=(const Key&) = delete;
-	Key& operator=(Key&&) = delete;
-
-	~Key() noexcept;
 	int DeleteKey();
 	
 	size_t ValueLength() noexcept;
@@ -188,7 +166,7 @@ public:
 	operator RedisModuleKey *() noexcept;
 	operator const RedisModuleKey *() const noexcept;
 protected:
-    RedisModuleKey *_key;
+    std::unique_ptr<RedisModuleKey, decltype(RedisModule_CloseKey)> _key;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -255,13 +233,6 @@ public:
 	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
 	CallReply(RedisModuleCallReply *reply);
 
-	CallReply(const CallReply&) = delete;
-	CallReply(CallReply&&) = default;
-	CallReply& operator=(const CallReply&) = delete;
-	CallReply& operator=(CallReply&&) = delete;
-
-	~CallReply() noexcept;
-
 	int Type();
 	size_t Length();
 
@@ -275,16 +246,22 @@ public:
 	
 	CallReply ArrayElement(size_t idx);
 	CallReply SetElement(size_t idx);
-	int MapElement(size_t idx, CallReply& key, CallReply& val);
-	int AttributeElement(size_t idx, CallReply& key, CallReply& val);
+
 	CallReply Attribute();
 
 	const char *Protocol(size_t& len);
 
+	// RM_CallReplyMapElement(RMCallReply *reply, size_t idx, RMCallReply **key, RMCallReply **val),
+	// which starts from a reply - that needs to be freed with RM_FreeCallReply -
+	// returns key and val, which are too of RMCallReply* type, and also should be freed in the same way?
+	// What sorcery is this?
+	std::pair<CallReply, CallReply> MapElement(size_t idx);
+	std::pair<CallReply, CallReply> AttributeElement(size_t idx);
+
 	RedisModuleCallReply *Unwrap() noexcept;
 	operator RedisModuleCallReply *() noexcept;
 private:
-	RedisModuleCallReply *_reply;
+	std::unique_ptr<RedisModuleCallReply, decltype(RedisModule_FreeCallReply)> _reply;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -293,13 +270,6 @@ class User {
 public:
 	User(const char *name);
 	User(String& name);
-
-	User(const User&) = delete;
-	User(User&&) = delete;
-	User& operator=(const User&) = delete;
-	User& operator=(User&&) = delete;
-	
-	~User() noexcept;
 
 	int SetACL(const char* acl);
 	int ACLCheckCommandPermissions(Args& args);
@@ -313,7 +283,7 @@ public:
 	RedisModuleUser *Unwrap() noexcept;
 	operator RedisModuleUser *() noexcept;
 private:
-	RedisModuleUser *_user;
+	std::unique_ptr<RedisModuleUser, decltype(RedisModule_FreeModuleUser)> _user;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -323,13 +293,6 @@ public:
 	class Iter {
 	public:
 		Iter(RedisModuleDictIter *iter);
-
-		Iter(const Iter&) = delete;
-		Iter(Iter&&) = default;
-		Iter& operator=(const Iter&) = delete;
-		Iter& operator=(Iter&&) = delete;
-
-		~Iter() noexcept;
 
 		int Reseek(const char *op, void *key, size_t keylen);
 		int Reseek(const char *op, String& key);
@@ -344,19 +307,13 @@ public:
 		RedisModuleDictIter *Unwrap() noexcept;
 		operator RedisModuleDictIter *();
 	private:
-		RedisModuleDictIter *_iter;
+		std::unique_ptr<RedisModuleDictIter, decltype(RedisModule_DictIteratorStop)> _iter;
 	};
 
 	// No Context. Used only for AutoMemory. To be deprecated.
 	Dict();
+	static void Deleter(RedisModuleDict *) noexcept;
 
-	Dict(const Dict&) = delete;
-	Dict(Dict&&) = delete;
-	Dict& operator=(const Dict&) = delete;
-	Dict& operator=(Dict&&) = delete;
-
-	~Dict() noexcept;
-	
 	uint64_t Size();
 	
 	int Set(void *key, size_t keylen, void *ptr);
@@ -373,7 +330,7 @@ public:
 	RedisModuleDict *Unwrap() noexcept;
 	operator RedisModuleDict *();
 private:
-	RedisModuleDict *_dict;
+	std::unique_ptr<RedisModuleDict, decltype(&Deleter)> _dict;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -381,13 +338,7 @@ private:
 class ServerInfo {
 	// No Context. Used only for AutoMemory. To be deprecated.
 	ServerInfo(const char *section);
-
-	ServerInfo(const ServerInfo&) = delete;
-	ServerInfo(ServerInfo&&) = delete;
-	ServerInfo& operator=(const ServerInfo&) = delete;
-	ServerInfo& operator=(ServerInfo&&) = delete;
-
-	~ServerInfo();
+	static void Deleter(RedisModuleServerInfoData *) noexcept;
 
 	void GetField(const char* field, String& str);
 	void GetField(const char* field, const char **str);
@@ -398,7 +349,7 @@ class ServerInfo {
 	RedisModuleServerInfoData *Unwrap() noexcept;
 	operator RedisModuleServerInfoData *();
 private:
-	RedisModuleServerInfoData *_info;
+	std::unique_ptr<RedisModuleServerInfoData, decltype(&Deleter)> _info;
 };
 
 //---------------------------------------------------------------------------------------------
