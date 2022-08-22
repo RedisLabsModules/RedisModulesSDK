@@ -559,7 +559,7 @@ CallReply::CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs...
 	: _reply(RedisModule_Call(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...), RedisModule_FreeCallReply)
 { }
 CallReply::CallReply(RedisModuleCallReply *reply)
-	: _reply(reply, RedisModule_FreeCallReply) {}
+	: _reply(reply, [](RedisModuleCallReply*){}) {}
 
 int CallReply::Type() {
 	return RedisModule_CallReplyType(_reply.get());
@@ -602,26 +602,35 @@ CallReply CallReply::Attribute() {
 const char *CallReply::Protocol(size_t &len) {
 	return RedisModule_CallReplyProto(_reply.get(), &len);
 }
-std::pair<CallReply, CallReply> CallReply::MapElement(size_t idx) {
+CallReply::KVP CallReply::MapElement(size_t idx) {
 	RedisModuleCallReply *key, *val;
 	if (RedisModule_CallReplyMapElement(_reply.get(), idx, &key, &val) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
-	return std::make_pair(key, val);
+	return KVP(key, val);
 }
-std::pair<CallReply, CallReply> CallReply::AttributeElement(size_t idx) {
+CallReply::KVP CallReply::AttributeElement(size_t idx) {
 	RedisModuleCallReply *key, *val;
 	if (RedisModule_CallReplyAttributeElement(_reply.get(), idx, &key, &val) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
-	return std::make_pair(key, val);
+	return KVP(key, val);
 }
-
 
 RedisModuleCallReply *CallReply::Unwrap() noexcept {
 	return _reply.get();
 }
 CallReply::operator RedisModuleCallReply *() noexcept { return _reply.get(); }
+
+CallReply::KVP::KVP(RedisModuleCallReply *key, RedisModuleCallReply *val)
+	: _kvp(std::make_pair(key, val))
+{ }
+CallReply CallReply::KVP::Key() {
+	return CallReply(_kvp.first);
+}
+CallReply CallReply::KVP::Val() {
+	return CallReply(_kvp.second);
+}
 
 //---------------------------------------------------------------------------------------------
 

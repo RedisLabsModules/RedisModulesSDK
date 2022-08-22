@@ -229,9 +229,17 @@ public:
 
 class CallReply {
 public:
+	class KVP {
+	public:
+		KVP(RedisModuleCallReply *key, RedisModuleCallReply *val);
+		CallReply Key();
+		CallReply Val();
+	private:
+		std::pair<RedisModuleCallReply*, RedisModuleCallReply*> _kvp;
+	};
+
 	template<typename... Vargs>
 	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
-	CallReply(RedisModuleCallReply *reply);
 
 	int Type();
 	size_t Length();
@@ -255,12 +263,14 @@ public:
 	// which starts from a reply - that needs to be freed with RM_FreeCallReply -
 	// returns key and val, which are too of RMCallReply* type, and also should be freed in the same way?
 	// What sorcery is this?
-	std::pair<CallReply, CallReply> MapElement(size_t idx);
-	std::pair<CallReply, CallReply> AttributeElement(size_t idx);
+	KVP MapElement(size_t idx);
+	KVP AttributeElement(size_t idx);
 
 	RedisModuleCallReply *Unwrap() noexcept;
 	operator RedisModuleCallReply *() noexcept;
 private:
+	friend class KVP;
+	CallReply(RedisModuleCallReply *reply);
 	std::unique_ptr<RedisModuleCallReply, decltype(RedisModule_FreeCallReply)> _reply;
 };
 
