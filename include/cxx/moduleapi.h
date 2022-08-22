@@ -104,7 +104,6 @@ class BlockedClient {
 public:
 	BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
 		void (*free_privdata)(Context, void *), long long timeout_ms);
-	static void Deleter(RedisModuleBlockedClient *) noexcept;
 
 	void UnblockClient(void *privdata);
 	void AbortBlock();
@@ -112,6 +111,8 @@ public:
 	RedisModuleBlockedClient *Unwrap() noexcept;
 	operator RedisModuleBlockedClient *();
 private:
+	static void Deleter(RedisModuleBlockedClient *) noexcept;
+	friend class std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)>;
 	std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)> _bc;
 };
 
@@ -259,10 +260,6 @@ public:
 
 	const char *Protocol(size_t& len);
 
-	// RM_CallReplyMapElement(RMCallReply *reply, size_t idx, RMCallReply **key, RMCallReply **val),
-	// which starts from a reply - that needs to be freed with RM_FreeCallReply -
-	// returns key and val, which are too of RMCallReply* type, and also should be freed in the same way?
-	// What sorcery is this?
 	KVP MapElement(size_t idx);
 	KVP AttributeElement(size_t idx);
 
@@ -322,7 +319,6 @@ public:
 
 	// No Context. Used only for AutoMemory. To be deprecated.
 	Dict();
-	static void Deleter(RedisModuleDict *) noexcept;
 
 	uint64_t Size();
 	
@@ -340,6 +336,8 @@ public:
 	RedisModuleDict *Unwrap() noexcept;
 	operator RedisModuleDict *();
 private:
+	static void Deleter(RedisModuleDict *) noexcept;
+	friend class std::unique_ptr<RedisModuleDict, decltype(&Deleter)>;
 	std::unique_ptr<RedisModuleDict, decltype(&Deleter)> _dict;
 };
 
@@ -348,7 +346,6 @@ private:
 class ServerInfo {
 	// No Context. Used only for AutoMemory. To be deprecated.
 	ServerInfo(const char *section);
-	static void Deleter(RedisModuleServerInfoData *) noexcept;
 
 	void GetField(const char* field, String& str);
 	void GetField(const char* field, const char **str);
@@ -359,6 +356,8 @@ class ServerInfo {
 	RedisModuleServerInfoData *Unwrap() noexcept;
 	operator RedisModuleServerInfoData *();
 private:
+	static void Deleter(RedisModuleServerInfoData *) noexcept;
+	friend class std::unique_ptr<RedisModuleServerInfoData, decltype(&Deleter)>;
 	std::unique_ptr<RedisModuleServerInfoData, decltype(&Deleter)> _info;
 };
 
