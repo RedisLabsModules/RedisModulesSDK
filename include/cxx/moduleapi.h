@@ -9,7 +9,6 @@ namespace RedisModule {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-typedef ::RedisModuleCtx* Context;
 typedef ::RedisModuleInfoCtx* InfoContext;
 typedef ::RedisModuleIO* IO;
 
@@ -86,6 +85,113 @@ private:
 
 //---------------------------------------------------------------------------------------------
 
+class CallReply {
+public:
+	class KVP {
+	public:
+		KVP(RedisModuleCallReply *key, RedisModuleCallReply *val);
+		CallReply Key();
+		CallReply Val();
+	private:
+		std::pair<RedisModuleCallReply*, RedisModuleCallReply*> _kvp;
+	};
+
+	int Type();
+	size_t Length();
+
+	long long Integer() noexcept;
+	double Double() noexcept;
+	const char *BigNumber(size_t& len);
+	const char *Verbatim(size_t& len, const char **format);
+	bool Bool() noexcept;
+	const char *StringPtr(size_t& len);
+	String CreateString();
+	
+	CallReply ArrayElement(size_t idx);
+	CallReply SetElement(size_t idx);
+	KVP MapElement(size_t idx);
+	KVP AttributeElement(size_t idx);
+
+	CallReply Attribute();
+	const char *Protocol(size_t& len);
+
+	RedisModuleCallReply *Unwrap() noexcept;
+	operator RedisModuleCallReply *() noexcept;
+private:
+	friend class Context;
+	friend class KVP;
+	CallReply(RedisModuleCallReply *reply, bool owning = false);
+	std::unique_ptr<RedisModuleCallReply, decltype(RedisModule_FreeCallReply)> _reply;
+};
+
+//---------------------------------------------------------------------------------------------
+
+class BlockedClient {
+public:
+	void UnblockClient(void *privdata);
+	void AbortBlock();
+
+	RedisModuleBlockedClient *Unwrap() noexcept;
+	operator RedisModuleBlockedClient *();
+private:
+	BlockedClient(RedisModuleBlockedClient* bc);
+	friend class Context;
+	static void Deleter(RedisModuleBlockedClient *) noexcept;
+	friend class std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)>;
+	std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)> _bc;
+};
+
+//---------------------------------------------------------------------------------------------
+
+class Context {
+public:
+	// No AutoMemory. To be deprecated.
+	// void AutoMemory() noexcept;
+
+	Context(RedisModuleCtx* ctx = NULL);
+
+	template<typename... Vargs>
+	CallReply Call(const char *cmdname, const char *fmt, Vargs... vargs);
+
+	bool IsKeysPositionRequest() noexcept;
+	void KeyAtPos(int pos) noexcept;
+	void KeyAtPosWithFlags(int pos, int flags);
+	int KeyExists(String& keyname);
+
+	int *GetCommandKeysWithFlags(Args args, int *num_keys, int **out_flags);
+
+	int GetSelectedDb() noexcept;
+	void SelectDb(int newid);
+
+	bool IsChannelsPositionRequest();
+	void ChannelAtPosWithFlags(int pos, int flags);
+
+	void Yield(int flags, const char *busy_reply);
+	int PublishMessageShard(String& channel, String& message);
+	int SendClusterMessage(const char *target_id, uint8_t type, const char *msg, uint32_t len);
+
+	template<typename... Vargs>
+	void Replicate(const char *cmdname, const char *fmt, Vargs... vargs);
+	void Replicate() noexcept;
+
+	unsigned long long GetClientId() noexcept;
+	static int SetClientNameById(uint64_t id, String& name);
+	String GetClientNameById(uint64_t id);
+
+	BlockedClient BlockClient(RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
+		void (*free_privdata)(RedisModuleCtx *, void *), long long timeout_ms);
+	bool IsBlockedReplyRequest();
+	bool IsBlockedTimeoutRequest();
+	void *GetBlockedClientPrivateData();
+
+	RedisModuleCtx *Unwrap() noexcept;
+	operator RedisModuleCtx*() noexcept;
+private:
+	RedisModuleCtx* _ctx;
+};
+
+//---------------------------------------------------------------------------------------------
+
 template <class T>
 struct Cmd {
 	Context _ctx;
@@ -95,25 +201,7 @@ struct Cmd {
 
 	virtual int operator()() = 0;
 	
-	static int cmdfunc(Context ctx, RedisModuleString **argv, int argc);
-};
-
-//---------------------------------------------------------------------------------------------
-
-class BlockedClient {
-public:
-	BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
-		void (*free_privdata)(Context, void *), long long timeout_ms);
-
-	void UnblockClient(void *privdata);
-	void AbortBlock();
-
-	RedisModuleBlockedClient *Unwrap() noexcept;
-	operator RedisModuleBlockedClient *();
-private:
-	static void Deleter(RedisModuleBlockedClient *) noexcept;
-	friend class std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)>;
-	std::unique_ptr<RedisModuleBlockedClient, decltype(&Deleter)> _bc;
+	static int cmdfunc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 };
 
 //---------------------------------------------------------------------------------------------
@@ -224,51 +312,6 @@ public:
 	int Set(int flags, Vargs... vargs);
 	template<typename... Vargs>
 	int Get(int flags, Vargs... vargs);
-};
-
-//---------------------------------------------------------------------------------------------
-
-class CallReply {
-public:
-	class KVP {
-	public:
-		KVP(RedisModuleCallReply *key, RedisModuleCallReply *val);
-		CallReply Key();
-		CallReply Val();
-	private:
-		std::pair<RedisModuleCallReply*, RedisModuleCallReply*> _kvp;
-	};
-
-	template<typename... Vargs>
-	CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
-
-	int Type();
-	size_t Length();
-
-	long long Integer() noexcept;
-	double Double() noexcept;
-	const char *BigNumber(size_t& len);
-	const char *Verbatim(size_t& len, const char **format);
-	bool Bool() noexcept;
-	const char *StringPtr(size_t& len);
-	String CreateString();
-	
-	CallReply ArrayElement(size_t idx);
-	CallReply SetElement(size_t idx);
-
-	CallReply Attribute();
-
-	const char *Protocol(size_t& len);
-
-	KVP MapElement(size_t idx);
-	KVP AttributeElement(size_t idx);
-
-	RedisModuleCallReply *Unwrap() noexcept;
-	operator RedisModuleCallReply *() noexcept;
-private:
-	friend class KVP;
-	CallReply(RedisModuleCallReply *reply);
-	std::unique_ptr<RedisModuleCallReply, decltype(RedisModule_FreeCallReply)> _reply;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -507,42 +550,6 @@ template<typename... Vargs>
 void Log(Context ctx, const char *level, const char *fmt, Vargs... vargs) noexcept;
 template<typename... Vargs>
 void LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... vargs) noexcept;
-}
-
-//---------------------------------------------------------------------------------------------
-
-namespace DB_KEY { // TODO: better namespace
-// No AutoMemory. To be deprecated.
-// void AutoMemory(Context ctx) noexcept;
-
-bool IsKeysPositionRequest(Context ctx) noexcept;
-void KeyAtPos(Context ctx, int pos) noexcept;
-void KeyAtPosWithFlags(Context ctx, int pos, int flags);
-int KeyExists(Context ctx, String& keyname);
-
-int *GetCommandKeysWithFlags(Context ctx, RedisModuleString **argv, int argc, int *num_keys, int **out_flags);
-
-int GetSelectedDb(Context ctx) noexcept;
-void SelectDb(Context ctx, int newid);
-
-bool IsChannelsPositionRequest(Context ctx);
-void ChannelAtPosWithFlags(Context ctx, int pos, int flags);
-
-void Yield(Context ctx, int flags, const char *busy_reply);
-int PublishMessageShard(Context ctx, String& channel, String& message);
-int SendClusterMessage(Context ctx, const char *target_id, uint8_t type, const char *msg, uint32_t len);
-
-template<typename... Vargs>
-void Replicate(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs);
-void Replicate(Context ctx) noexcept;
-
-int IsBlockedReplyRequest(Context ctx);
-int IsBlockedTimeoutRequest(Context ctx);
-void *GetBlockedClientPrivateData(Context ctx);
-
-unsigned long long GetClientId(Context ctx) noexcept;
-int SetClientNameById(uint64_t id, String& name);
-String GetClientNameById(Context ctx, uint64_t id);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -179,59 +179,119 @@ void Log::LogIOError(IO io, const char *levelstr, const char *fmt, Vargs... varg
 	RedisModule_LogIOError(io, levelstr, fmt, RedisModule::Unwrap(vargs)...);
 }
 
+Context::Context(RedisModuleCtx *ctx) : _ctx(ctx) {}
+
 // No AutoMemory. To be deprecated.
-// void DB_KEY::AutoMemory(Context ctx) noexcept {
+// void Context::AutoMemory(Context ctx) noexcept {
 // 	RedisModule_AutoMemory(ctx);
 // }
 
-bool DB_KEY::IsKeysPositionRequest(Context ctx) noexcept {
-	return RedisModule_IsKeysPositionRequest(ctx);
-}
-void DB_KEY::KeyAtPos(Context ctx, int pos) noexcept {
-	RedisModule_KeyAtPos(ctx, pos);
+template<typename... Vargs>
+CallReply Context::Call(const char *cmdname, const char *fmt, Vargs... vargs) {
+	return CallReply(RedisModule_Call(_ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...), true);
 }
 
-int DB_KEY::GetSelectedDb(Context ctx) noexcept {
-	return RedisModule_GetSelectedDb(ctx);
+bool Context::IsKeysPositionRequest() noexcept {
+	return RedisModule_IsKeysPositionRequest(_ctx);
 }
-void DB_KEY::SelectDb(Context ctx, int newid) {
-	if (RedisModule_SelectDb(ctx, newid) != REDISMODULE_OK) {
+void Context::KeyAtPos(int pos) noexcept {
+	RedisModule_KeyAtPos(_ctx, pos);
+}
+void Context::KeyAtPosWithFlags(int pos, int flags) {
+	RedisModule_KeyAtPosWithFlags(_ctx, pos, flags);
+}
+int Context::KeyExists(String& keyname) {
+	return RedisModule_KeyExists(_ctx, keyname);
+}
+int *Context::GetCommandKeysWithFlags(Args args, int *num_keys, int **out_flags) {
+	return RedisModule_GetCommandKeysWithFlags(_ctx, args, args.Size(), num_keys, out_flags);
+}
+
+int Context::GetSelectedDb() noexcept {
+	return RedisModule_GetSelectedDb(_ctx);
+}
+void Context::SelectDb(int newid) {
+	if (RedisModule_SelectDb(_ctx, newid) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
 }
-unsigned long long DB_KEY::GetClientId(Context ctx) noexcept {
-	return RedisModule_GetClientId(ctx);
+unsigned long long Context::GetClientId() noexcept {
+	return RedisModule_GetClientId(_ctx);
+}
+int Context::SetClientNameById(uint64_t id, String& name) {
+	return RedisModule_SetClientNameById(id, name);
+}
+String Context::GetClientNameById(uint64_t id) {
+	return RedisModule_GetClientNameById(_ctx, id);
+}
+
+bool Context::IsChannelsPositionRequest() {
+	return RedisModule_IsChannelsPositionRequest(_ctx);
+}
+void Context::ChannelAtPosWithFlags(int pos, int flags) {
+	RedisModule_ChannelAtPosWithFlags(_ctx, pos, flags);
+}
+void Context::Yield(int flags, const char *busy_reply) {
+	RedisModule_Yield(_ctx, flags, busy_reply);
+}
+int Context::PublishMessageShard(String& channel, String& message) {
+	return RedisModule_PublishMessageShard(_ctx, channel, message);
+}
+int Context::SendClusterMessage(const char *target_id, uint8_t type, const char *msg, uint32_t len) {
+	return RedisModule_SendClusterMessage(_ctx, target_id, type, msg, len);
 }
 
 template<typename... Vargs>
-void DB_KEY::Replicate(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs) {
-	if (RedisModule_Replicate(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...) != REDISMODULE_OK) {
+void Context::Replicate(const char *cmdname, const char *fmt, Vargs... vargs) {
+	if (RedisModule_Replicate(_ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
 }
-void DB_KEY::Replicate(Context ctx) noexcept {
-	RedisModule_ReplicateVerbatim(ctx);
+void Context::Replicate() noexcept {
+	RedisModule_ReplicateVerbatim(_ctx);
 }
+
+BlockedClient Context::BlockClient(RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
+	void (*free_privdata)(RedisModuleCtx *, void*), long long timeout_ms) {
+	return RedisModule_BlockClient(_ctx, reply_callback, timeout_callback, free_privdata, timeout_ms);
+}
+bool Context::IsBlockedReplyRequest() {
+	return RedisModule_IsBlockedReplyRequest(_ctx);
+}
+bool Context::IsBlockedTimeoutRequest() {
+	return RedisModule_IsBlockedTimeoutRequest(_ctx);
+}
+void *Context::GetBlockedClientPrivateData() {
+	return RedisModule_GetBlockedClientPrivateData(_ctx);
+}
+
+RedisModuleCtx *Context::Unwrap() noexcept {
+	return _ctx;
+}
+Context::operator RedisModuleCtx*() noexcept { return _ctx; }
 
 //---------------------------------------------------------------------------------------------
 
-BlockedClient::BlockedClient(Context ctx, RedisModuleCmdFunc reply_callback, RedisModuleCmdFunc timeout_callback,
-	void (*free_privdata)(RedisModuleCtx *, void*), long long timeout_ms)
-	: _bc(RedisModule_BlockClient(ctx, reply_callback, timeout_callback, free_privdata, timeout_ms), &Deleter)
+BlockedClient::BlockedClient(RedisModuleBlockedClient* bc)
+	: _bc(bc, &Deleter)
 { }
 void BlockedClient::Deleter(RedisModuleBlockedClient *bc) noexcept {
 	RedisModule_AbortBlock(bc); // you had your chance to catch errors yourself
 }
 
 void BlockedClient::UnblockClient(void *privdata) {
+	if (_bc == nullptr) return;
 	if (RedisModule_UnblockClient(_bc.get(), privdata) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
+	_bc = nullptr;
 }
 void BlockedClient::AbortBlock() {
+	if (_bc == nullptr) return;
 	if (RedisModule_AbortBlock(_bc.get()) != REDISMODULE_OK) {
 		throw REDISMODULE_ERR;
 	}
+	_bc = nullptr;
 }
 
 RedisModuleBlockedClient *BlockedClient::Unwrap() noexcept {
@@ -554,12 +614,8 @@ void RDB::EmitAOF(IO io, const char *cmdname, const char *fmt, Vargs... vargs) {
 
 //---------------------------------------------------------------------------------------------
 
-template<typename... Vargs>
-CallReply::CallReply(Context ctx, const char *cmdname, const char *fmt, Vargs... vargs) 
-	: _reply(RedisModule_Call(ctx, cmdname, fmt, RedisModule::Unwrap(vargs)...), RedisModule_FreeCallReply)
-{ }
-CallReply::CallReply(RedisModuleCallReply *reply)
-	: _reply(reply, [](RedisModuleCallReply*){}) {}
+CallReply::CallReply(RedisModuleCallReply *reply, bool owning)
+	: _reply(reply, owning ? RedisModule_FreeCallReply : [](RedisModuleCallReply*){}) {}
 
 int CallReply::Type() {
 	return RedisModule_CallReplyType(_reply.get());
@@ -595,13 +651,6 @@ CallReply CallReply::ArrayElement(size_t idx) {
 CallReply CallReply::SetElement(size_t idx) {
 	return RedisModule_CallReplySetElement(_reply.get(), idx);
 }
-CallReply CallReply::Attribute() {
-	return RedisModule_CallReplyAttribute(_reply.get());
-}
-
-const char *CallReply::Protocol(size_t &len) {
-	return RedisModule_CallReplyProto(_reply.get(), &len);
-}
 CallReply::KVP CallReply::MapElement(size_t idx) {
 	RedisModuleCallReply *key, *val;
 	if (RedisModule_CallReplyMapElement(_reply.get(), idx, &key, &val) != REDISMODULE_OK) {
@@ -617,6 +666,13 @@ CallReply::KVP CallReply::AttributeElement(size_t idx) {
 	return KVP(key, val);
 }
 
+CallReply CallReply::Attribute() {
+	return RedisModule_CallReplyAttribute(_reply.get());
+}
+const char *CallReply::Protocol(size_t &len) {
+	return RedisModule_CallReplyProto(_reply.get(), &len);
+}
+
 RedisModuleCallReply *CallReply::Unwrap() noexcept {
 	return _reply.get();
 }
@@ -626,10 +682,10 @@ CallReply::KVP::KVP(RedisModuleCallReply *key, RedisModuleCallReply *val)
 	: _kvp(std::make_pair(key, val))
 { }
 CallReply CallReply::KVP::Key() {
-	return CallReply(_kvp.first);
+	return _kvp.first;
 }
 CallReply CallReply::KVP::Val() {
-	return CallReply(_kvp.second);
+	return _kvp.second;
 }
 
 //---------------------------------------------------------------------------------------------
@@ -808,7 +864,7 @@ template <class T>
 Cmd<T>::Cmd(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
 
 template <class T>
-int Cmd<T>::cmdfunc(Context ctx, RedisModuleString **argv, int argc) {
+int Cmd<T>::cmdfunc(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 	try {
 		Args args(argc, argv);
 		T cmd(ctx, args);

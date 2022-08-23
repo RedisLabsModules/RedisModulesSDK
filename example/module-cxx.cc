@@ -99,11 +99,11 @@ struct HGetSet : Cmd<HGetSet> {
 		}
 
 		// get the current value of the hash element
-		CallReply rep(_ctx, "HGET", "ss", _args[1], _args[2]);
+		CallReply rep = _ctx.Call("HGET", "ss", _args[1], _args[2]);
 		ASSERT_NOERROR(_ctx, rep);
 
 		// set the new value of the element
-		CallReply srep(_ctx, "HSET", "sss", _args[1], _args[2], _args[3]);
+		CallReply srep = _ctx.Call("HSET", "sss", _args[1], _args[2], _args[3]);
 		ASSERT_NOERROR(_ctx, srep);
 
 		// if the value was null before - we just return null
@@ -119,34 +119,34 @@ struct HGetSet : Cmd<HGetSet> {
 
 // Test the the PARSE command
 int testParse(Context ctx) {
-	CallReply r(ctx, "example.parse", "ccc", "SUM", "5", "2");
+	CallReply r = ctx.Call("example.parse", "ccc", "SUM", "5", "2");
 	RMUtil_Assert(r.Type() == REDISMODULE_REPLY_INTEGER);
 	AssertReplyEquals(r, "7");
 
-	CallReply s(ctx, "example.parse", "ccc", "PROD", "5", "2");
-	RMUtil_Assert(s.Type() == REDISMODULE_REPLY_INTEGER);
-	AssertReplyEquals(s, "10");
+	r = ctx.Call("example.parse", "ccc", "PROD", "5", "2");
+	RMUtil_Assert(r.Type() == REDISMODULE_REPLY_INTEGER);
+	AssertReplyEquals(r, "10");
 
 	return REDISMODULE_OK;
 }
 
 // test the HGETSET command
 int testHgetSet(Context ctx) {
-	CallReply r(ctx, "example.hgetset", "ccc", "foo", "bar", "baz");
+	CallReply r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "baz");
 	RMUtil_Assert(r.Type() != REDISMODULE_REPLY_ERROR);
 
-	CallReply s(ctx, "example.hgetset", "ccc", "foo", "bar", "bag");
-	RMUtil_Assert(s.Type() == REDISMODULE_REPLY_STRING);
-	AssertReplyEquals(s, "baz");
+	r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "bag");
+	RMUtil_Assert(r.Type() == REDISMODULE_REPLY_STRING);
+	AssertReplyEquals(r, "baz");
 
-	CallReply t(ctx, "example.hgetset", "ccc", "foo", "bar", "bang");
-	AssertReplyEquals(t, "bag");
+	r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "bang");
+	AssertReplyEquals(r, "bag");
 
 	return REDISMODULE_OK;
 }
 
 // Unit test entry point for the module
-int TestModule(Context ctx, RedisModuleString **argv, int argc) {
+int TestModule(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 	// RedisModule_AutoMemory(ctx);
 
 	TEST(testParse);
