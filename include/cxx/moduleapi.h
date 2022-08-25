@@ -2,15 +2,12 @@
 
 #include <memory>     // std::unique_ptr
 #include <string>     // std::string
+#include <span>       // std::span
 #include <functional> // std::function
 #include "redismodule.h"
 
 
 namespace Redis {
-
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-typedef ::RedisModuleInfoCtx* InfoContext; // class InfoContext
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -77,14 +74,14 @@ private:
 
 class Args {
 public:
-	Args(int argc, RedisModuleString **argv);
+	// Args(int argc, RedisModuleString **argv);
+	Args(std::span<RedisModuleString*> args);
+	
 	int Size() const;
+	String operator[](int i) const;
 	operator RedisModuleString **() const;
-
-	String operator[](int idx);
 private:
-	int _argc;
-	RedisModuleString **_argv;
+	std::span<RedisModuleString*> _args;
 };
 
 //---------------------------------------------------------------------------------------------
@@ -163,7 +160,7 @@ public:
 	void KeyAtPosWithFlags(int pos, int flags);
 	bool KeyExists(const String& keyname);
 
-	int *GetCommandKeysWithFlags(Args& args, int *num_keys, int **out_flags);
+	int *GetCommandKeysWithFlags(const Args& args, int *num_keys, int **out_flags);
 
 	int GetSelectedDb() noexcept;
 	void SelectDb(int newid);
@@ -222,16 +219,28 @@ private:
 //---------------------------------------------------------------------------------------------
 
 template <class T>
-struct Cmd {
+struct Cmd { // CRTP
 	Context _ctx;
 	Args _args;
 
 	Cmd(Context ctx, const Args& args);
-
-	virtual int operator()() = 0;
+	int operator()();
 	
 	static int cmdfunc(Context ctx, const Args& args);
 };
+
+using CmdFunc = int(Context, const Args&);
+namespace Command {
+template <CmdFunc cmdfunc>
+int Create(Context ctx, const char *name,
+	const char *strflags, int firstkey, int lastkey, int keystep);
+RedisModuleCommand *Get(Context ctx, const char *name);
+int CreateSubCommand(RedisModuleCommand *parent, const char *name, RedisModuleCmdFunc cmdfunc,
+	const char *strflags, int firstkey, int lastkey, int keystep);
+int SetInfo(RedisModuleCommand *command, const RedisModuleCommandInfo *info);
+
+String FilterArgGet(RedisModuleCommandFilterCtx *fctx, int pos);
+}
 
 //---------------------------------------------------------------------------------------------
 
@@ -351,7 +360,7 @@ public:
 	User(String& name);
 
 	int SetACL(const char* acl);
-	int ACLCheckCommandPermissions(Args& args);
+	int ACLCheckCommandPermissions(const Args& args);
 	int ACLCheckKeyPermissions(String& key, int flags);
 	int ACLCheckChannelPermissions(String& ch, int flags);
 	void ACLAddLogEntry(Context ctx, String& object, RedisModuleACLLogEntryReason reason);
@@ -470,32 +479,25 @@ int Del(int fd, int mask);
 
 //---------------------------------------------------------------------------------------------
 
-using CmdFunc = int(Context, const Args&);
-namespace Command {
-template <CmdFunc cmdfunc>
-int Create(Context ctx, const char *name,
-	const char *strflags, int firstkey, int lastkey, int keystep);
-RedisModuleCommand *Get(Context ctx, const char *name);
-int CreateSubCommand(RedisModuleCommand *parent, const char *name, RedisModuleCmdFunc cmdfunc,
-	const char *strflags, int firstkey, int lastkey, int keystep);
-int SetInfo(RedisModuleCommand *command, const RedisModuleCommandInfo *info);
-
-String FilterArgGet(RedisModuleCommandFilterCtx *fctx, int pos);
-}
-
 //---------------------------------------------------------------------------------------------
 
-namespace Info {  // should be class
-void RegisterFunc(Context ctx, RedisModuleInfoFunc cb);
-int AddSection(InfoContext ctx, const char *name);
-int BeginDictField(InfoContext ctx, const char *name);
-int EndDictField(InfoContext ctx);
-int AddField(InfoContext ctx, const char *field, String& value);
-int AddField(InfoContext ctx, const char *field, const char *value);
-int AddField(InfoContext ctx, const char *field, double value);
-int AddField(InfoContext ctx, const char *field, long long value);
-int AddField(InfoContext ctx, const char *field, unsigned long long value);
-}
+class Info {
+public:
+	static void RegisterFunc(Context ctx, RedisModuleInfoFunc cb);
+
+	Info(RedisModuleInfoCtx* ctx);
+
+	int AddSection(const char *name);
+	int BeginDictField(const char *name);
+	int EndDictField();
+	int AddField(const char *field, String& value);
+	int AddField(const char *field, const char *value);
+	int AddField(const char *field, double value);
+	int AddField(const char *field, long long value);
+	int AddField(const char *field, unsigned long long value);
+private:
+	RedisModuleInfoCtx *_ctx;
+};
 
 //---------------------------------------------------------------------------------------------
 

@@ -139,7 +139,7 @@ struct HGetSet : Cmd<HGetSet> {
 
 // Test the the PARSE command
 int testParse(Context ctx) {
-	CallReply r = ctx.Call("example.parse", "ccc", "SUM", "5", "2");
+	auto r = ctx.Call("example.parse", "ccc", "SUM", "5", "2");
 	RMUtil_Assert(r.Type() == REDISMODULE_REPLY_INTEGER);
 	AssertReplyEquals(r, "7");
 
@@ -152,7 +152,7 @@ int testParse(Context ctx) {
 
 // test the HGETSET command
 int testHgetSet(Context ctx) {
-	CallReply r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "baz");
+	auto r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "baz");
 	RMUtil_Assert(r.Type() != REDISMODULE_REPLY_ERROR);
 
 	r = ctx.Call("example.hgetset", "ccc", "foo", "bar", "bag");

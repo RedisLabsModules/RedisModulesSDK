@@ -126,7 +126,7 @@ int Context::ReplyWithCallReply(Redis::CallReply& reply) {
 
 template<CmdFunc cmdfunc>
 int callback_wrapper(RedisModuleCtx* ctx, RedisModuleString** argv, int argc) {
-	return cmdfunc(ctx, Args(argc, argv));
+	return cmdfunc(ctx, Args{{argv, static_cast<size_t>(argc)}});
 }
 
 template<CmdFunc cmdfunc>
@@ -152,29 +152,31 @@ String Command::FilterArgGet(RedisModuleCommandFilterCtx *fctx, int pos) {
 void Info::RegisterFunc(Context ctx, RedisModuleInfoFunc cb) {
 	RedisModule_RegisterInfoFunc(ctx, cb);
 }
-int Info::AddSection(InfoContext ctx, const char *name) {
-	return RedisModule_InfoAddSection(ctx, name);
+Info::Info(RedisModuleInfoCtx* ctx) : _ctx(ctx) {}
+
+int Info::AddSection(const char *name) {
+	return RedisModule_InfoAddSection(_ctx, name);
 }
-int Info::BeginDictField(InfoContext ctx, const char *name) {
-	return RedisModule_InfoBeginDictField(ctx, name);
+int Info::BeginDictField(const char *name) {
+	return RedisModule_InfoBeginDictField(_ctx, name);
 }
-int Info::EndDictField(InfoContext ctx) {
-	return RedisModule_InfoEndDictField(ctx);
+int Info::EndDictField() {
+	return RedisModule_InfoEndDictField(_ctx);
 }
-int Info::AddField(InfoContext ctx, const char *field, String& value) {
-	return RedisModule_InfoAddFieldString(ctx, field, value);
+int Info::AddField(const char *field, String& value) {
+	return RedisModule_InfoAddFieldString(_ctx, field, value);
 }
-int Info::AddField(InfoContext ctx, const char *field, const char *value) {
-	return RedisModule_InfoAddFieldCString(ctx, field, value);
+int Info::AddField(const char *field, const char *value) {
+	return RedisModule_InfoAddFieldCString(_ctx, field, value);
 }
-int Info::AddField(InfoContext ctx, const char *field, double value) {
-	return RedisModule_InfoAddFieldDouble(ctx, field, value);
+int Info::AddField(const char *field, double value) {
+	return RedisModule_InfoAddFieldDouble(_ctx, field, value);
 }
-int Info::AddField(InfoContext ctx, const char *field, long long value) {
-	return RedisModule_InfoAddFieldLongLong(ctx, field, value);
+int Info::AddField(const char *field, long long value) {
+	return RedisModule_InfoAddFieldLongLong(_ctx, field, value);
 }
-int Info::AddField(InfoContext ctx, const char *field, unsigned long long value) {
-	return RedisModule_InfoAddFieldULongLong(ctx, field, value);
+int Info::AddField(const char *field, unsigned long long value) {
+	return RedisModule_InfoAddFieldULongLong(_ctx, field, value);
 }
 
 Context::Context(RedisModuleCtx *ctx) : _ctx(ctx) {}
@@ -201,8 +203,9 @@ void Context::KeyAtPosWithFlags(int pos, int flags) {
 bool Context::KeyExists(const String& keyname) {
 	return RedisModule_KeyExists(_ctx, const_cast<String&>(keyname));
 }
-int *Context::GetCommandKeysWithFlags(Args& args, int *num_keys, int **out_flags) {
-	return RedisModule_GetCommandKeysWithFlags(_ctx, args, args.Size(), num_keys, out_flags);
+int *Context::GetCommandKeysWithFlags(const Args& args, int *num_keys, int **out_flags) {
+	return RedisModule_GetCommandKeysWithFlags(
+		_ctx, args, args.Size(), num_keys, out_flags);
 }
 
 int Context::GetSelectedDb() noexcept {
@@ -738,8 +741,9 @@ User::User(String& name)
 int User::SetACL(const char* acl) {
 	return RedisModule_SetModuleUserACL(_user.get(), acl);
 }
-int User::ACLCheckCommandPermissions(Args& args) {
-	return RedisModule_ACLCheckCommandPermissions(_user.get(), args, args.Size());
+int User::ACLCheckCommandPermissions(const Args& args) {
+	return RedisModule_ACLCheckCommandPermissions(
+		_user.get(), args, args.Size());
 }
 int User::ACLCheckKeyPermissions(String& key, int flags) {
 	return RedisModule_ACLCheckKeyPermissions(_user.get(), key, flags);
@@ -882,30 +886,36 @@ ServerInfo::operator RedisModuleServerInfoData *() { return _info.get(); }
 
 //---------------------------------------------------------------------------------------------
 
-Args::Args(int argc, RedisModuleString **argv)
-	: _argc(argc), _argv(argv)
-{}
+// Args::Args(int argc, RedisModuleString **argv)
+// 	: _args{argv, static_cast<size_t>(argc)}
+// { }
+Args::Args(std::span<RedisModuleString*> args)
+	: _args{args}
+{ }
 
 int Args::Size() const {
-	return _argc;
+	return _args.size();
+}
+String Args::operator[](int i) const {
+	return _args[i];
 }
 Args::operator RedisModuleString **() const {
-	return _argv;
-}
-
-String Args::operator[](int idx) {
-	return _argv[idx];
+	return _args.data();
 }
 
 //---------------------------------------------------------------------------------------------
 
 template <class T>
 Cmd<T>::Cmd(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
+template <class T>
+int Cmd<T>::operator()() {
+	return static_cast<T*>(this)->operator()();
+}
 
 template <class T>
 int Cmd<T>::cmdfunc(Context ctx, const Args& args) {
 	try {
-		return T(ctx, args)();
+		return Cmd(ctx, args)();
 	} catch(...) {
 		return REDISMODULE_ERR;
 	}
