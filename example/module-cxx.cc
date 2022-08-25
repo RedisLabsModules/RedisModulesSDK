@@ -13,13 +13,27 @@
 *  If it receives "PROD <x> <y>" it returns their product
 */
 
-using namespace RedisModule;
+using namespace Redis;
+
+int ArgExists(const char *arg, const Args& args, int offset) {
+
+  size_t larg = strlen(arg);
+  for (; offset < args.Size(); offset++) {
+    size_t l;
+    const char *carg = RedisModule_StringPtrLen(args[offset], &l);
+    if (l != larg) continue;
+    if (carg != NULL && strncasecmp(carg, arg, larg) == 0) {
+      return offset;
+    }
+  }
+  return 0;
+}
 
 #define ASSERT_NOERROR(ctx, r)                      \
   if (r == nullptr) {                               \
-    return Reply::Error(ctx, "ERR reply is NULL");  \
+    return ctx.ReplyWithError("ERR reply is NULL"); \
   } else if (r.Type() == REDISMODULE_REPLY_ERROR) { \
-    Reply::CallReply(ctx, r);                       \
+    ctx.ReplyWithCallReply(r);                      \
     return REDISMODULE_ERR;                         \
   }
 
@@ -31,21 +45,26 @@ using namespace RedisModule;
 	)                                               \
   )
 
-#define TEST(f)                                        \
-  if (argc < 2 ||                                      \
-  	  RMUtil_ArgExists(__STRING(f), argv, argc, 1)) {  \
-    int rc = f(ctx);                                   \
-	if (rc != REDISMODULE_OK) {                        \
-      Reply::Error(ctx, "Test " __STRING(f) " FAILED");\
-      return REDISMODULE_ERR;                          \
-    }                                                  \
+#define TEST(f)                                         \
+  if (args.Size() < 2 ||                                \
+  	  ArgExists(__STRING(f), args, 1)) {                \
+    int rc = f(ctx);                                    \
+	if (rc != REDISMODULE_OK) {                         \
+      ctx.ReplyWithError("Test " __STRING(f) " FAILED");\
+      return REDISMODULE_ERR;                           \
+    }                                                   \
   }
+
+#define RegisterWriteCmd(ctx, cmd, f) \
+  if (Command::Create<f>(ctx, cmd, "write", 1, 1, 1) == REDISMODULE_ERR) \
+    return REDISMODULE_ERR;
+
        
 struct Parse : Cmd<Parse> {
-	Parse(Context ctx, Args& args) : Cmd(ctx, args) {
+	Parse(Context ctx, const Args& args) : Cmd(ctx, args) {
 		// we must have at least 4 args
 		if (_args.Size() < 4) {
-			throw Reply::WrongArity(_ctx);
+			throw _ctx.WrongArity();
 		}
 	}
 	int operator()() {
@@ -56,18 +75,18 @@ struct Parse : Cmd<Parse> {
 
 		// If we got SUM - return the sum of 2 consecutive arguments
 		if (RMUtil_ParseArgsAfter("SUM", _args, _args.Size(), "ll", &x, &y) == REDISMODULE_OK) {
-			Reply::LongLong(_ctx, x + y);
+			_ctx.ReplyWithLongLong(x + y);
 			return REDISMODULE_OK;
 		}
 
 		// If we got PROD - return the product of 2 consecutive arguments
 		if (RMUtil_ParseArgsAfter("PROD", _args, _args.Size(), "ll", &x, &y) == REDISMODULE_OK) {
-			Reply::LongLong(_ctx, x * y);
+			_ctx.ReplyWithLongLong(x * y);
 			return REDISMODULE_OK;
 		}
 
 		// something is fishy...
-		Reply::Error(_ctx, "Invalid arguments");
+		_ctx.ReplyWithError("Invalid arguments");
 
 		return REDISMODULE_ERR;
 	}
@@ -81,10 +100,10 @@ struct Parse : Cmd<Parse> {
 * Basically atomic HGET + HSET
 */
 struct HGetSet : Cmd<HGetSet> {
-	HGetSet(Context ctx, Args& args) : Cmd(ctx, args) {
+	HGetSet(Context ctx, const Args& args) : Cmd(ctx, args) {
 		// we need EXACTLY 4 arguments
 		if (_args.Size() != 4) {
-			throw Reply::WrongArity(_ctx);
+			throw _ctx.WrongArity();
 		}
 	}
 
@@ -95,24 +114,25 @@ struct HGetSet : Cmd<HGetSet> {
 		Key key(_ctx, _args[1], REDISMODULE_READ | REDISMODULE_WRITE);
 		if (key.Type() != REDISMODULE_KEYTYPE_HASH && 
 			key.Type() != REDISMODULE_KEYTYPE_EMPTY) {
-			return Reply::Error(_ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+			return _ctx.ReplyWithError(REDISMODULE_ERRORMSG_WRONGTYPE);
 		}
 
 		// get the current value of the hash element
-		CallReply rep = _ctx.Call("HGET", "ss", _args[1], _args[2]);
+		auto rep = _ctx.Call("HGET", "ss", _args[1], _args[2]);
 		ASSERT_NOERROR(_ctx, rep);
+		// if (!rep) { _ctx.Reply(rep); }
 
 		// set the new value of the element
-		CallReply srep = _ctx.Call("HSET", "sss", _args[1], _args[2], _args[3]);
+		auto srep = _ctx.Call("HSET", "sss", _args[1], _args[2], _args[3]);
 		ASSERT_NOERROR(_ctx, srep);
 
 		// if the value was null before - we just return null
 		if (rep.Type() == REDISMODULE_REPLY_NULL) {
-			return Reply::Null(_ctx);
+			return _ctx.ReplyWithNull();
 		}
 
 		// forward the HGET reply to the client
-		Reply::CallReply(_ctx, rep);
+		_ctx.ReplyWithCallReply(rep);
 		return REDISMODULE_OK;
 	}
 };
@@ -146,33 +166,33 @@ int testHgetSet(Context ctx) {
 }
 
 // Unit test entry point for the module
-int TestModule(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int TestModule(Context ctx, const Args& args) {
 	// RedisModule_AutoMemory(ctx);
 
 	TEST(testParse);
 	TEST(testHgetSet);
 
-	Reply::SimpleString(ctx, "PASS");
+	ctx.ReplyWithSimpleString("PASS");
 	return REDISMODULE_OK;
 }
 
 extern "C" {
-int RedisModule_OnLoad(Context ctx, RedisModuleString **argv, int argc) {
+int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **, int) {
 	// Register the module itself
 	if (RedisModule_Init(ctx, "example", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
 	}
 
 	// register example.parse - the default registration syntax
-	if (Command::Create(ctx, "example.parse", Cmd<Parse>::cmdfunc, "readonly", 1, 1, 1) == REDISMODULE_ERR) {
+	if (Command::Create<Cmd<Parse>::cmdfunc>(ctx, "example.parse", "readonly", 1, 1, 1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
 	}
 
 	// register example.hgetset - using the shortened utility registration macro
-	RMUtil_RegisterWriteCmd(ctx, "example.hgetset", Cmd<HGetSet>::cmdfunc);
+	RegisterWriteCmd(ctx, "example.hgetset", Cmd<HGetSet>::cmdfunc);
 
 	// register the unit test
-	RMUtil_RegisterWriteCmd(ctx, "example.test", TestModule);
+	RegisterWriteCmd(ctx, "example.test", TestModule);
 
 	return REDISMODULE_OK;
 }
