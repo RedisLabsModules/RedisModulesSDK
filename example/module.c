@@ -1,7 +1,11 @@
-#include "../redismodule.h"
-#include "../rmutil/util.h"
-#include "../rmutil/strings.h"
-#include "../rmutil/test_util.h"
+
+#define REDISMODULE_MAIN
+#define REDISMODULE_EXPERIMENTAL_API
+#include "redismodule.h"
+
+#include "rmutil/util.h"
+#include "rmutil/strings.h"
+#include "rmutil/test_util.h"
 
 /* EXAMPLE.PARSE [SUM <x> <y>] | [PROD <x> <y>]
 *  Demonstrates the automatic arg parsing utility.
@@ -123,16 +127,13 @@ int TestModule(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx) {
-
   // Register the module itself
-  if (RedisModule_Init(ctx, "example", 1, REDISMODULE_APIVER_1) ==
-      REDISMODULE_ERR) {
+  if (RedisModule_Init(ctx, "example", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 
   // register example.parse - the default registration syntax
-  if (RedisModule_CreateCommand(ctx, "example.parse", ParseCommand, "readonly",
-                                1, 1, 1) == REDISMODULE_ERR) {
+  if (RedisModule_CreateCommand(ctx, "example.parse", ParseCommand, "readonly", 1, 1, 1) == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
 

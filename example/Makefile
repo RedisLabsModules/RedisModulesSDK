@@ -1,33 +1,40 @@
-#set environment variable RM_INCLUDE_DIR to the location of redismodule.h
-ifndef RM_INCLUDE_DIR
-	RM_INCLUDE_DIR=../
-endif
 
-ifndef RMUTIL_LIBDIR
-	RMUTIL_LIBDIR=../rmutil
-endif
+RMUTIL_LIBDIR ?= ../rmutil
 
 # find the OS
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 # Compile flags for linux / osx
 ifeq ($(uname_S),Linux)
-	SHOBJ_CFLAGS ?=  -fno-common -g -ggdb
-	SHOBJ_LDFLAGS ?= -shared -Bsymbolic
+SHOBJ_CFLAGS ?= -fno-common -g -ggdb
+SHOBJ_LDFLAGS ?= -shared -Bsymbolic
 else
-	SHOBJ_CFLAGS ?= -dynamic -fno-common -g -ggdb
-	SHOBJ_LDFLAGS ?= -bundle -undefined dynamic_lookup
+SHOBJ_CFLAGS ?= -dynamic -fno-common -g -ggdb
+SHOBJ_LDFLAGS ?= -bundle -undefined dynamic_lookup
 endif
-CFLAGS = -I$(RM_INCLUDE_DIR) -Wall -g -fPIC -lc -lm -std=gnu99  
-CC=gcc
 
-all: rmutil module.so
+GCC_FLAGS = -I.. -I../include -Wall -g -fPIC -lc -lm -std=gnu99
+GCC=gcc
 
-rmutil: FORCE
+GXX_FLAGS = -I.. -I../include -Wall -g -fPIC -lc -lm -std=c++20
+GXX=g++
+
+all: rmutil module.so module-cxx.so
+
+rmutil: $(RMUTIL_LIBDIR)/librmutil.a
 	$(MAKE) -C $(RMUTIL_LIBDIR)
 
+%.o : %.c
+	$(GCC) -c $(GCC_FLAGS) -Wall -o $@ $^
+
+%.o : %.cc
+	$(GXX) -c $(GXX_FLAGS) -Wall -o $@ $^
+
 module.so: module.o
-	$(LD) -o $@ module.o $(SHOBJ_LDFLAGS) $(LIBS) -L$(RMUTIL_LIBDIR) -lrmutil -lc 
+	$(GCC) -o $@ $^ $(GCC_FLAGS) $(SHOBJ_LDFLAGS) $(LIBS) -L$(RMUTIL_LIBDIR) -lrmutil -lc 
+
+module-cxx.so: module-cxx.o
+	$(GXX) -o $@ $^ $(GXX_FLAGS) $(SHOBJ_LDFLAGS) $(LIBS) -L$(RMUTIL_LIBDIR) -lrmutil -lc
 
 clean:
 	rm -rf *.xo *.so *.o

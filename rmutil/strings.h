@@ -3,6 +3,10 @@
 
 #include <redismodule.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 * Create a new RedisModuleString object from a printf-style format and arguments.
 * Note that RedisModuleString objects CANNOT be used as formatting arguments.
@@ -35,4 +39,9 @@ void RMUtil_StringToUpper(RedisModuleString *s);
  * Options may be 0 or `RMUTIL_STRINGCONVERT_COPY`
  */
 void RMUtil_StringConvert(RedisModuleString **rs, const char **ss, size_t n, int options);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

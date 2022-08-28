@@ -4,6 +4,10 @@
 #include <redismodule.h>
 #include <stdarg.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// make sure the response is not NULL or an error, and if it is sends the error to the client and
 /// exit the current function
 #define RMUTIL_ASSERT_NOERROR(ctx, r)                                   \
@@ -147,5 +151,9 @@ typedef enum {
  * @return a value in the @ref RMUtil_TryGetValueStatus enum.
  */
 int RedisModule_TryGetValue(RedisModuleKey *key, const RedisModuleType *type, void **out);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

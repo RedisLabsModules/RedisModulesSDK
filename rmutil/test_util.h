@@ -42,7 +42,7 @@ RedisModuleString **RMUtil_MakeArgs(RedisModuleCtx *ctx, int *argcp, const char 
     
     va_list ap;
     va_start(ap, fmt);
-    RedisModuleString **argv = calloc(strlen(fmt), sizeof(RedisModuleString*));
+    RedisModuleString **argv = (RedisModuleString**) calloc(strlen(fmt), sizeof(RedisModuleString*));
     int argc = 0;
     const char *p = fmt;
     while(*p) {
@@ -50,7 +50,7 @@ RedisModuleString **RMUtil_MakeArgs(RedisModuleCtx *ctx, int *argcp, const char 
             char *cstr = va_arg(ap,char*);
             argv[argc++] = RedisModule_CreateString(ctx, cstr, strlen(cstr));
         } else if (*p == 's') {
-            argv[argc++] = va_arg(ap,void*);;
+            argv[argc++] = va_arg(ap,RedisModuleString*);;
         } else if (*p == 'l') {
             long ll = va_arg(ap,long long);
             argv[argc++] = RedisModule_CreateStringFromLongLong(ctx, ll);
