@@ -74,7 +74,7 @@ private:
 
 class Args {
 public:
-	// Args(int argc, RedisModuleString **argv);
+	Args(RedisModuleString **argv, int argc);
 	Args(std::span<RedisModuleString*> args);
 	
 	int Size() const;
@@ -219,11 +219,11 @@ private:
 //---------------------------------------------------------------------------------------------
 
 template <class T>
-struct Cmd { // CRTP
+struct CmdCRTP { // CRTP
 	Context _ctx;
 	Args _args;
 
-	Cmd(Context ctx, const Args& args);
+	CmdCRTP(Context ctx, const Args& args);
 	int operator()();
 	
 	static int cmdfunc(Context ctx, const Args& args);

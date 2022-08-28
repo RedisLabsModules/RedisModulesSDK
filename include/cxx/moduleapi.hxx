@@ -125,15 +125,12 @@ int Context::ReplyWithCallReply(Redis::CallReply& reply) {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 template<CmdFunc cmdfunc>
-int callback_wrapper(RedisModuleCtx* ctx, RedisModuleString** argv, int argc) {
-	return cmdfunc(ctx, Args{{argv, static_cast<size_t>(argc)}});
-}
-
-template<CmdFunc cmdfunc>
-int Command::Create(Context ctx, const char *name,
-	const char *strflags, int firstkey, int lastkey, int keystep) {
-	return RedisModule_CreateCommand(ctx, name, &callback_wrapper<cmdfunc>,
-		strflags, firstkey, lastkey, keystep);
+int Command::Create(Context ctx, const char *name, const char *strflags,
+					int firstkey, int lastkey, int keystep) {
+	return RedisModule_CreateCommand(ctx, name,
+		[] (RedisModuleCtx* ctx, RedisModuleString** argv, int argc) {
+			return cmdfunc(ctx, Args{{argv, static_cast<size_t>(argc)}});
+		}, strflags, firstkey, lastkey, keystep);
 }
 RedisModuleCommand *Command::Get(Context ctx, const char *name) {
 	return RedisModule_GetCommand(ctx, name);
@@ -886,12 +883,10 @@ ServerInfo::operator RedisModuleServerInfoData *() { return _info.get(); }
 
 //---------------------------------------------------------------------------------------------
 
-// Args::Args(int argc, RedisModuleString **argv)
-// 	: _args{argv, static_cast<size_t>(argc)}
-// { }
-Args::Args(std::span<RedisModuleString*> args)
-	: _args{args}
+Args::Args(RedisModuleString **argv, int argc)
+	: _args{argv, static_cast<size_t>(argc)}
 { }
+Args::Args(std::span<RedisModuleString*> args) : _args{args} { }
 
 int Args::Size() const {
 	return _args.size();
@@ -906,16 +901,16 @@ Args::operator RedisModuleString **() const {
 //---------------------------------------------------------------------------------------------
 
 template <class T>
-Cmd<T>::Cmd(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
+CmdCRTP<T>::CmdCRTP(Context ctx, const Args& args) : _ctx(ctx), _args(args) {}
 template <class T>
-int Cmd<T>::operator()() {
-	return static_cast<T*>(this)->operator()();
+int CmdCRTP<T>::operator()() {
+	return static_cast<T&>(*this)();
 }
 
 template <class T>
-int Cmd<T>::cmdfunc(Context ctx, const Args& args) {
+int CmdCRTP<T>::cmdfunc(Context ctx, const Args& args) {
 	try {
-		return Cmd(ctx, args)();
+		return CmdCRTP(ctx, args)();
 	} catch(...) {
 		return REDISMODULE_ERR;
 	}

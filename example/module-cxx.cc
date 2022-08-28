@@ -60,8 +60,8 @@ int ArgExists(const char *arg, const Args& args, int offset) {
     return REDISMODULE_ERR;
 
        
-struct Parse : Cmd<Parse> {
-	Parse(Context ctx, const Args& args) : Cmd(ctx, args) {
+struct Parse : CmdCRTP<Parse> {
+	Parse(Context ctx, const Args& args) : CmdCRTP(ctx, args) {
 		// we must have at least 4 args
 		if (_args.Size() < 4) {
 			throw _ctx.WrongArity();
@@ -99,8 +99,8 @@ struct Parse : Cmd<Parse> {
 *
 * Basically atomic HGET + HSET
 */
-struct HGetSet : Cmd<HGetSet> {
-	HGetSet(Context ctx, const Args& args) : Cmd(ctx, args) {
+struct HGetSet : CmdCRTP<HGetSet> {
+	HGetSet(Context ctx, const Args& args) : CmdCRTP(ctx, args) {
 		// we need EXACTLY 4 arguments
 		if (_args.Size() != 4) {
 			throw _ctx.WrongArity();
@@ -184,12 +184,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **, int) {
 	}
 
 	// register example.parse - the default registration syntax
-	if (Command::Create<Cmd<Parse>::cmdfunc>(ctx, "example.parse", "readonly", 1, 1, 1) == REDISMODULE_ERR) {
+	if (Command::Create<Parse::cmdfunc>(ctx, "example.parse", "readonly", 1, 1, 1) == REDISMODULE_ERR) {
 		return REDISMODULE_ERR;
 	}
 
 	// register example.hgetset - using the shortened utility registration macro
-	RegisterWriteCmd(ctx, "example.hgetset", Cmd<HGetSet>::cmdfunc);
+	RegisterWriteCmd(ctx, "example.hgetset", HGetSet::cmdfunc);
 
 	// register the unit test
 	RegisterWriteCmd(ctx, "example.test", TestModule);
