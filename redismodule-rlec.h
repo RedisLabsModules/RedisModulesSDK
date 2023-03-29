@@ -88,7 +88,7 @@ REDISMODULE_API void (*RedisModule_ShardingGetSlotRange)(int *first_slot, int *l
     REDISMODULE_GET_API(GetSwapKeyMetadata); \
     REDISMODULE_GET_API(SetSwapKeyMetadata); \
     REDISMODULE_GET_API(IsKeyInRam); \
-	/**/
+    /**/
 
 //---------------------------------------------------------------------------------------------
 
