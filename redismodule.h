@@ -1314,7 +1314,7 @@ REDISMODULE_API int (*RedisModule_LoadConfigs)(RedisModuleCtx *ctx) REDISMODULE_
 
 #define RedisModule_IsAOFClient(id) ((id) == UINT64_MAX)
 
-#ifdef REDIS_MODULE_SDK_RLEC
+#ifdef REDISMODULE_SDK_RLEC
 #include "redismodule-rlec.h"
 #endif
 
