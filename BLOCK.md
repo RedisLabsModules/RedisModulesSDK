@@ -66,7 +66,7 @@ To better understand how the API works, we can imagine writing a command
 that blocks a client for one second, and then send as reply "Hello!".
 
 Note: arity checks and other non important things are not implemented
-int his command, in order to take the example simple.
+in this command, in order to take the example simple.
 
     int Example_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                              int argc)
