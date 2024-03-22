@@ -87,7 +87,7 @@ int his command, in order to take the example simple.
         RedisModule_UnblockClient(bc,NULL);
     }
 
-The above command blocks the client ASAP, spawining a thread that will
+The above command blocks the client ASAP, spawning a thread that will
 wait a second and will unblock the client. Let's check the reply and
 timeout callbacks, which are in our case very similar, since they
 just reply the client with a different reply type.
@@ -138,7 +138,7 @@ caller. In order to make this working, we modify the functions as follow:
 As you can see, now the unblocking call is passing some private data,
 that is the `mynumber` pointer, to the reply callback. In order to
 obtain this private data, the reply callback will use the following
-fnuction:
+function:
 
     void *RedisModule_GetBlockedClientPrivateData(RedisModuleCtx *ctx);
 
@@ -162,7 +162,7 @@ long value must be freed. Our callback will look like the following:
     }
 
 NOTE: It is important to stress that the private data is best freed in the
-`free_privdata` callback becaues the reply function may not be called
+`free_privdata` callback because the reply function may not be called
 if the client disconnects or timeout.
 
 Also note that the private data is also accessible from the timeout
