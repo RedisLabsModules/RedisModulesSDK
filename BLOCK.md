@@ -126,13 +126,14 @@ can be passed to the reply function so that we return it to the command
 caller. In order to make this working, we modify the functions as follow:
 
     void *threadmain(void *arg) {
-        RedisModuleBlockedClient *bc = arg;
+        RedisModuleBlockedClient *bc = (RedisModuleBlockedClient *)arg;
 
         sleep(1); /* Wait one second and unblock. */
 
         long *mynumber = RedisModule_Alloc(sizeof(long));
         *mynumber = rand();
         RedisModule_UnblockClient(bc,mynumber);
+        return NULL;
     }
 
 As you can see, now the unblocking call is passing some private data,
