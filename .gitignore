@@ -4,3 +4,6 @@
 *.db
 .vscode
 rmutil/test_vector
+rmutil/test_periodic
+*.dSYM
+*.pyc
