@@ -133,6 +133,7 @@ typedef long long ustime_t;
 
 #define REDISMODULE_CONFIG_MEMORY (1ULL<<7) /* Indicates if this value can be set as a memory value */
 #define REDISMODULE_CONFIG_BITFLAGS (1ULL<<8) /* Indicates if this value can be set as a multiple enum values */
+#define REDISMODULE_CONFIG_UNPREFIXED (1ULL<<9) /* Provided configuration name won't be prefixed with the module name */
 
 /* StreamID type. */
 typedef struct RedisModuleStreamID {
