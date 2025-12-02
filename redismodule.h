@@ -278,7 +278,6 @@ This flag should not be used directly by the module.
 #define REDISMODULE_CLUSTER_FLAG_NO_FAILOVER (1<<1)
 #define REDISMODULE_CLUSTER_FLAG_NO_REDIRECTION (1<<2)
 
-#define REDISMODULE_SERVER_CAPA_NO_TRIM 0
 #define REDISMODULE_NOT_USED(V) ((void) V)
 
 /* Logging level strings */
@@ -1358,8 +1357,8 @@ REDISMODULE_API void (*RedisModule_GetRandomBytes)(unsigned char *dst, size_t le
 REDISMODULE_API void (*RedisModule_GetRandomHexChars)(char *dst, size_t len) REDISMODULE_ATTR;
 REDISMODULE_API void (*RedisModule_SetDisconnectCallback)(RedisModuleBlockedClient *bc, RedisModuleDisconnectFunc callback) REDISMODULE_ATTR;
 REDISMODULE_API void (*RedisModule_SetClusterFlags)(RedisModuleCtx *ctx, uint64_t flags) REDISMODULE_ATTR;
-REDISMODULE_API int (*RedisModule_AcquireServerCapability)(RedisModuleCtx *ctx, int capa) REDISMODULE_ATTR;
-REDISMODULE_API int (*RedisModule_ReleaseServerCapability)(RedisModuleCtx *ctx, int capa) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_ClusterDisableTrim)(RedisModuleCtx *ctx) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_ClusterEnableTrim)(RedisModuleCtx *ctx) REDISMODULE_ATTR;
 REDISMODULE_API unsigned int (*RedisModule_ClusterKeySlot)(RedisModuleString *key) REDISMODULE_ATTR;
 REDISMODULE_API unsigned int (*RedisModule_ClusterKeySlotC)(const char *keystr, size_t keylen) REDISMODULE_ATTR;
 REDISMODULE_API const char *(*RedisModule_ClusterCanonicalKeyNameInSlot)(unsigned int slot) REDISMODULE_ATTR;
@@ -1757,8 +1756,8 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(GetRandomBytes);
     REDISMODULE_GET_API(GetRandomHexChars);
     REDISMODULE_GET_API(SetClusterFlags);
-    REDISMODULE_GET_API(AcquireServerCapability);
-    REDISMODULE_GET_API(ReleaseServerCapability);
+    REDISMODULE_GET_API(ClusterDisableTrim);
+    REDISMODULE_GET_API(ClusterEnableTrim);
     REDISMODULE_GET_API(ClusterKeySlot);
     REDISMODULE_GET_API(ClusterKeySlotC);
     REDISMODULE_GET_API(ClusterCanonicalKeyNameInSlot);
