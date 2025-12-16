@@ -219,7 +219,7 @@ typedef struct RedisModuleStreamID {
 /* This context can call execute debug commands. */
 #define REDISMODULE_CTX_FLAGS_DEBUG_ENABLED (1<<25)
 /* Trim is in progress due to slot migration. */
-#define REDISMODULE_CTX_TRIM_IN_PROGRESS (1<<26)
+#define REDISMODULE_CTX_FLAGS_TRIM_IN_PROGRESS (1<<26)
 
 /* Next context flag, must be updated when adding new flags above!
 This flag should not be used directly by the module.
@@ -520,8 +520,7 @@ typedef void (*RedisModuleEventLoopOneShotFunc)(void *user_data);
 #define REDISMODULE_EVENT_KEY 17
 #define REDISMODULE_EVENT_CLUSTER_SLOT_MIGRATION 18
 #define REDISMODULE_EVENT_CLUSTER_SLOT_MIGRATION_TRIM 19
-#define REDISMODULE_EVENT_CLUSTER_UNOWNEDKEYS 20
-#define _REDISMODULE_EVENT_NEXT 21 /* Next event flag, should be updated if a new event added. */
+#define _REDISMODULE_EVENT_NEXT 20 /* Next event flag, should be updated if a new event added. */
 
 typedef struct RedisModuleEvent {
     uint64_t id;        /* REDISMODULE_EVENT_... defines. */
@@ -640,10 +639,6 @@ static const RedisModuleEvent
     RedisModuleEvent_ClusterSlotMigrationTrim = {
         REDISMODULE_EVENT_CLUSTER_SLOT_MIGRATION_TRIM,
         1
-    },
-    RedisModuleEvent_ClusterUnownedKeys = {
-        REDISMODULE_EVENT_CLUSTER_UNOWNEDKEYS,
-        1
     };
 
 /* Those are values that are used for the 'subevent' callback argument. */
@@ -735,10 +730,6 @@ static const RedisModuleEvent
 #define REDISMODULE_SUBEVENT_CLUSTER_SLOT_MIGRATION_TRIM_COMPLETED 1
 #define REDISMODULE_SUBEVENT_CLUSTER_SLOT_MIGRATION_TRIM_BACKGROUND 2
 #define _REDISMODULE_SUBEVENT_CLUSTER_SLOT_MIGRATION_TRIM_NEXT 3
-
-#define REDISMODULE_SUBEVENT_CLUSTER_UNOWNEDKEYS_DETECTED 0
-#define REDISMODULE_SUBEVENT_CLUSTER_UNOWNEDKEYS_RESOLVED 1
-#define _REDISMODULE_SUBEVENT_CLUSTER_UNOWNEDKEYS_NEXT 2
 
 /* RedisModuleClientInfo flags. */
 #define REDISMODULE_CLIENTINFO_FLAG_SSL (1<<0)
