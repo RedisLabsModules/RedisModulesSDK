@@ -1196,6 +1196,8 @@ REDISMODULE_API int (*RedisModule_PublishMessage)(RedisModuleCtx *ctx, RedisModu
 REDISMODULE_API int (*RedisModule_PublishMessageShard)(RedisModuleCtx *ctx, RedisModuleString *channel, RedisModuleString *message) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_GetContextFlags)(RedisModuleCtx *ctx) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_AvoidReplicaTraffic)(void) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_EnablePostponeClients)(void) REDISMODULE_ATTR;
+REDISMODULE_API int (*RedisModule_DisablePostponeClients)(void) REDISMODULE_ATTR;
 REDISMODULE_API void * (*RedisModule_PoolAlloc)(RedisModuleCtx *ctx, size_t bytes) REDISMODULE_ATTR;
 REDISMODULE_API RedisModuleType * (*RedisModule_CreateDataType)(RedisModuleCtx *ctx, const char *name, int encver, RedisModuleTypeMethods *typemethods) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_ModuleTypeSetValue)(RedisModuleKey *key, RedisModuleType *mt, void *value) REDISMODULE_ATTR;
@@ -1590,6 +1592,8 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(GetClientUserNameById);
     REDISMODULE_GET_API(GetContextFlags);
     REDISMODULE_GET_API(AvoidReplicaTraffic);
+    REDISMODULE_GET_API(EnablePostponeClients);
+    REDISMODULE_GET_API(DisablePostponeClients);
     REDISMODULE_GET_API(PoolAlloc);
     REDISMODULE_GET_API(CreateDataType);
     REDISMODULE_GET_API(ModuleTypeSetValue);
