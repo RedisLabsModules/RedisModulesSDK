@@ -49,6 +49,12 @@ REDISMODULE_API int (*RedisModule_IsKeyInRam)(RedisModuleCtx *ctx, RedisModuleSt
 REDISMODULE_API int (*RedisModule_EnablePostponeClients)(void) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_DisablePostponeClients)(void) REDISMODULE_ATTR;
 
+/* Flags */
+
+/* Redis is out of ram according to the max-ram flag. */
+#define REDISMODULE_CTX_FLAGS_OOR (1<<30)
+/* Redis is currently loading, saving or preparing a partial RDB file that goes along with sst files. */
+#define REDISMODULE_CTX_FLAGS_SST_RDB (1<<29)
 //---------------------------------------------------------------------------------------------
 
 /* Keyspace changes notification classes. Every class is associated with a
