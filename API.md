@@ -3,8 +3,8 @@ Redis Modules: an introduction to the API
 
 The modules documentation is composed of the following files:
 
-* `INTRO.md` (this file). An overview about Redis Modules system and API. It's a good idea to start your reading here.
-* `API.md` is generated from module.c top comments of RedisMoule functions. It is a good reference in order to understand how each function works.
+* `API.md` (this file). An overview about Redis Modules system and API. It's a good idea to start your reading here.
+* `FUNCTIONS.md` is generated from module.c top comments of RedisMoule functions. It is a good reference in order to understand how each function works.
 * `TYPES.md` covers the implementation of native data types into modules.
 * `BLOCK.md` shows how to write blocking commands that will not reply immediately, but will block the client, without blocking the Redis server, and will provide a reply whenever will be possible.
 
@@ -573,7 +573,7 @@ To create a new key, open it for writing and then write to it using one
 of the key writing functions. Example:
 
     RedisModuleKey *key;
-    key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_READ);
+    key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_WRITE);
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_StringSet(key,argv[2]);
     }
