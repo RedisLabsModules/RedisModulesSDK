@@ -221,11 +221,6 @@ typedef struct RedisModuleStreamID {
 /* Trim is in progress due to slot migration. */
 #define REDISMODULE_CTX_FLAGS_TRIM_IN_PROGRESS (1<<26)
 
-/* Redis is out of ram according to the max-ram flag. */
-#define REDISMODULE_CTX_FLAGS_OOR (1<<30)
-/* Redis is currently loading, saving or preparing a partial RDB file that goes along with sst files. */
-#define REDISMODULE_CTX_FLAGS_SST_RDB (1<<29)
-
 /* Next context flag, must be updated when adding new flags above!
 This flag should not be used directly by the module.
  * Use RedisModule_GetContextFlagsAll instead. */
