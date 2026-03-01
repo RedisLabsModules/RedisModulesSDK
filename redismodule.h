@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct RedisModuleString RedisModuleString;
 typedef struct RedisModuleKey RedisModuleKey;
@@ -1070,6 +1074,10 @@ typedef struct RedisModuleKeyMetaClassConfig {
     RedisModule_GetApi("RedisModule_" #name, ((void **)&RedisModule_ ## name))
 
 /* Default API declaration prefix (not 'extern' for backwards compatibility) */
+#ifndef REDISMODULE_MAIN
+#define REDISMODULE_API extern
+#endif
+
 #ifndef REDISMODULE_API
 #define REDISMODULE_API
 #endif
@@ -1474,6 +1482,10 @@ REDISMODULE_API int (*RedisModule_GetKeyMeta)(RedisModuleKeyMetaClassId id, Redi
 
 #define RedisModule_IsAOFClient(id) ((id) == UINT64_MAX)
 
+#ifdef REDISMODULE_SDK_RLEC
+#include "redismodule-rlec.h"
+#endif
+
 /* This is included inline inside each Redis module. */
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) REDISMODULE_ATTR_UNUSED;
 static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int apiver) {
@@ -1872,6 +1884,10 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(SetKeyMeta);
     REDISMODULE_GET_API(GetKeyMeta);
 
+#ifdef REDISMODULE_RLEC_API_DEFS
+    REDISMODULE_RLEC_API_DEFS
+#endif
+
     if (RedisModule_IsModuleNameBusy && RedisModule_IsModuleNameBusy(name)) return REDISMODULE_ERR;
     RedisModule_SetModuleAttribs(ctx,name,ver,apiver);
     return REDISMODULE_OK;
@@ -1882,4 +1898,9 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
 #define RMAPI_FUNC_SUPPORTED(func) (func != NULL)
 
 #endif /* REDISMODULE_CORE */
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* REDISMODULE_H */
