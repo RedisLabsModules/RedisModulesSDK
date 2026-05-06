@@ -26,6 +26,13 @@ test_periodic: test_periodic.o periodic.o
 	$(CC) -Wall -o $@ $^ -lc -lpthread -O0
 	@(sh -c ./$@)
 .PHONY: test_periodic
-	
-test: test_periodic test_vector
+
+export TESTMODULE_SO = rmodule_test.so
+export TEST_OBJS = test_string.o test_util.o librmutil.a
+export
+test_rmodule: librmutil.a $(TEST_OBJS)
+	$(MAKE) -f testmodule/Makefile
+.PHONY: test_rmodule
+
+test: test_periodic test_vector test_rmodule
 .PHONY: test

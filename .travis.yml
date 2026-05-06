@@ -1,0 +1,12 @@
+language: c
+
+compiler:
+    - gcc
+
+before_script:
+    - git clone --depth 1 https://github.com/antirez/redis.git
+    - sudo make -C redis install
+
+script:
+    - cd rmutil
+    - make test
