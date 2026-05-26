@@ -48,6 +48,7 @@ REDISMODULE_API int (*RedisModule_SetSwapKeyMetadata)(RedisModuleCtx *ctx, Redis
 REDISMODULE_API int (*RedisModule_IsKeyInRam)(RedisModuleCtx *ctx, RedisModuleString *key) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_EnablePostponeClients)(void) REDISMODULE_ATTR;
 REDISMODULE_API int (*RedisModule_DisablePostponeClients)(void) REDISMODULE_ATTR;
+REDISMODULE_API RedisModuleSlotRangeArray *(*RedisModule_GetClusterNodeSlotRanges)(RedisModuleCtx *ctx, const char *nodeid) REDISMODULE_ATTR;
 
 /* Flags */
 
@@ -98,6 +99,7 @@ REDISMODULE_API void (*RedisModule_ShardingGetSlotRange)(int *first_slot, int *l
     REDISMODULE_GET_API(IsKeyInRam); \
     REDISMODULE_GET_API(EnablePostponeClients); \
     REDISMODULE_GET_API(DisablePostponeClients); \
+    REDISMODULE_GET_API(GetClusterNodeSlotRanges); \
     /**/
 
 //---------------------------------------------------------------------------------------------
