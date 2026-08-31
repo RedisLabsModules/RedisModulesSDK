@@ -76,6 +76,10 @@ static const RedisModuleEvent
         1
     };
 
+/* Prevent direct-to-disk key writes during RDB loading and RESTORE in
+ * BigRedis mode. See RM_SetModuleOptions for details. */
+ #define REDISMODULE_OPTIONS_REQUIRE_LOADED_KEYS_IN_RAM    (1<<30)
+
 /* Those are values that are used for the 'subevent' callback argument. */
 
 #define REDISMODULE_SUBEVENT_SHARDING_SLOT_RANGE_CHANGED 0
